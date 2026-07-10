@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Market Listem</title>
+<meta name="theme-color" content="#16241C" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style>
+  :root{
+    --ink:#16241C; --green:#1F7A5C; --coral:#FF6B4A; --purple:#7C5CFC; --muted:#7C8A82; --bg:#F2F4F1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif; color:var(--ink);}
+  .wrap{max-width:420px; margin:0 auto; padding-bottom:120px; min-height:100vh;}
+  .header{display:flex; align-items:center; justify-content:space-between; padding:28px 20px 14px;}
+  .header-left{display:flex; align-items:center; gap:10px;}
+  .logo{width:40px; height:40px; border-radius:16px; background:var(--green); display:flex; align-items:center; justify-content:center; font-size:19px;}
+  h1{font-size:17px; margin:0; font-weight:700;}
+  .subtitle{font-size:11px; color:var(--muted); margin:2px 0 0;}
+  .badge{font-size:11px; padding:4px 10px; border-radius:999px; background:#fff; color:var(--green); font-weight:700; border:1px solid rgba(31,122,92,0.15);}
+  .header-right{display:flex; align-items:center; gap:8px;}
+  .linkbtn{font-size:10.5px; font-weight:600; color:var(--muted); background:none; border:none; padding:4px 6px; cursor:pointer;}
+  .linkbtn.green{color:var(--green);}
+  .tabs{display:flex; gap:6px; padding:4px; margin:0 16px 12px; background:#E8EAE5; border-radius:12px;}
+  .tab{flex:1; padding:8px; border:none; border-radius:8px; background:transparent; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;}
+  .tab.active{background:#fff; color:var(--ink);}
+  .card{margin:0 16px; border-radius:24px; padding:16px; background:#fff; box-shadow:0 8px 24px -8px rgba(22,36,28,0.12);}
+  input[type=text], input[type=search]{width:100%; font-size:14px; padding:10px 12px; border-radius:12px; border:none; outline:none; background:var(--bg); color:var(--ink); font-family:inherit;}
+  input::placeholder{color:#B5BDB4;}
+  .row2{display:flex; gap:8px; margin-top:10px;}
+  .field{flex:1;}
+  .field label{font-size:10px; color:var(--muted); font-weight:600; padding-left:2px; display:block; margin-bottom:2px;}
+  .field input{font-family:'Courier New',monospace; font-size:15px;}
+  .unit-toggle{display:flex; gap:8px; margin-top:10px;}
+  .unit-btn{flex:1; border:none; border-radius:12px; padding:8px; background:var(--bg); color:var(--ink); cursor:pointer; text-align:left;}
+  .unit-btn.active{background:var(--green); color:#fff;}
+  .unit-btn .t1{font-size:12.5px; font-weight:700;}
+  .unit-btn .t2{font-size:10px; opacity:0.75;}
+  .stepper-row{display:flex; align-items:center; justify-content:space-between; background:var(--bg); border-radius:12px; padding:8px 12px; margin-top:10px;}
+  .stepper-label{font-size:11.5px; color:var(--muted); font-weight:600;}
+  .stepper{display:flex; align-items:center; gap:12px;}
+  .stepper button{width:24px; height:24px; border-radius:999px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;}
+  .stepper .minus{background:#fff; color:var(--ink);}
+  .stepper .plus{background:var(--green); color:#fff;}
+  #kac-tane-val{font-family:'Courier New',monospace; font-weight:700; width:16px; text-align:center;}
+  .preview{border-radius:12px; padding:10px 12px; margin-top:10px; background:rgba(31,122,92,0.06);}
+  .preview-row{display:flex; align-items:center; justify-content:space-between;}
+  .preview-row span:first-child{font-size:11px; color:var(--green); font-weight:600;}
+  .preview-row span:last-child{font-size:13.5px; font-weight:700; color:var(--green); font-family:'Courier New',monospace;}
+  .preview-sub{display:flex; align-items:center; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed rgba(31,122,92,0.2);}
+  #submit-btn{width:100%; padding:13px; border-radius:12px; border:none; margin-top:12px; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;}
+  #submit-btn:disabled{background:#D8DCD8; opacity:0.7;}
+  #edit-banner{display:none; align-items:center; justify-content:space-between; margin-bottom:10px; padding:6px 10px; border-radius:12px; background:rgba(255,107,74,0.08);}
+  #edit-banner span{font-size:11.5px; color:var(--coral); font-weight:700;}
+  #edit-banner button{background:none; border:none; color:var(--coral); font-weight:700; font-size:11px; cursor:pointer;}
+  .search-wrap{position:relative; margin:16px 16px 0;}
+  .search-wrap input{padding-left:34px; padding-right:30px; background:#fff; box-shadow:0 4px 14px -6px rgba(22,36,28,0.1);}
+  .search-icon{position:absolute; left:11px; top:50%; transform:translateY(-50%); opacity:0.5; font-size:13px;}
+  .search-clear{position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; opacity:0.5; font-size:13px;}
+  .list-card{margin:12px 16px 0; border-radius:24px; overflow:hidden; background:#fff; box-shadow:0 8px 24px -8px rgba(22,36,28,0.10);}
+  .item-row{display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-bottom:1px solid #EEF0EC;}
+  .item-row:last-child{border-bottom:none;}
+  .item-row.editing{background:rgba(255,107,74,0.05);}
+  .item-row.baskasi{background:rgba(124,92,252,0.07);}
+  .person-btn{border:none; background:none; padding:0; cursor:pointer; flex-shrink:0; margin-top:2px;}
+  .person-circle{width:24px; height:24px; border-radius:999px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted);}
+  .person-circle.active{background:var(--purple); color:#fff; font-weight:800; font-size:9px;}
+  .item-info{flex:1; min-width:0; padding-top:2px; cursor:pointer;}
+  .item-name{font-size:12px; font-weight:700; line-height:1.4; word-break:break-word;}
+  .item-name.baskasi{color:var(--purple);}
+  .item-tag{font-size:9px; padding:2px 6px; border-radius:999px; font-weight:700; margin-left:4px; display:inline-block;}
+  .tag-kacTane{background:rgba(255,107,74,0.12); color:var(--coral);}
+  .tag-baskasi{background:rgba(124,92,252,0.12); color:var(--purple);}
+  .item-sub{font-size:10px; color:var(--muted); margin-top:2px;}
+  .kim-input{font-size:10px; margin-top:5px; padding:5px 8px; border-radius:8px; border:none; outline:none; width:100%; background:rgba(124,92,252,0.06); color:var(--purple); font-family:inherit;}
+  .item-price{font-size:13px; font-weight:700; font-family:'Courier New',monospace; flex-shrink:0; margin-top:2px;}
+  .item-price.baskasi{color:var(--purple);}
+  .item-actions{display:flex; flex-direction:column; gap:6px; flex-shrink:0; margin-top:2px;}
+  .item-actions button, .reorder-actions button{background:none; border:none; cursor:pointer; padding:1px; opacity:0.45; font-size:12px;}
+  .reorder-actions{display:flex; flex-direction:column; flex-shrink:0;}
+  .reorder-actions button:disabled{opacity:0.08; cursor:default;}
+  .empty-state{margin:24px 16px 0; text-align:center; padding:32px 16px; color:var(--muted); font-size:12.5px;}
+  .baska-toggle{margin:10px 16px 0; width:calc(100% - 32px); display:flex; align-items:center; justify-content:space-between; border-radius:12px; padding:10px 14px; background:rgba(124,92,252,0.08); border:1px solid rgba(124,92,252,0.2); cursor:pointer;}
+  .baska-toggle span{color:var(--purple); font-weight:700; font-size:11.5px;}
+  .baska-panel{margin:8px 16px 0; border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 8px 24px -8px rgba(22,36,28,0.10);}
+  .baska-group-head{display:flex; align-items:center; justify-content:space-between; padding:10px 16px 4px;}
+  .baska-group-head span{font-weight:800; color:var(--purple); font-size:11.5px;}
+  .baska-item{display:flex; align-items:center; justify-content:space-between; padding:4px 16px;}
+  .baska-item span:first-child{font-size:11.5px;}
+  .baska-item span:last-child{font-size:11px; color:var(--muted); font-family:'Courier New',monospace;}
+  .save-card{margin:12px 16px 0;}
+  .save-btn{width:100%; padding:11px; border-radius:12px; background:#fff; color:var(--green); border:1px solid rgba(31,122,92,0.2); font-size:12px; font-weight:700; cursor:pointer;}
+  .save-panel{border-radius:16px; padding:12px; background:#fff; border:1px solid rgba(31,122,92,0.2);}
+  .save-panel label{font-size:10.5px; color:var(--muted); font-weight:600;}
+  .save-panel input{margin-top:4px;}
+  .save-panel .actions{display:flex; gap:8px; margin-top:8px;}
+  .save-panel .actions button{flex:1; padding:9px; border:none; border-radius:10px; font-size:11.5px; font-weight:700; cursor:pointer;}
+  .btn-cancel{background:var(--bg); color:var(--muted);}
+  .btn-confirm{background:var(--green); color:#fff;}
+  .sticky{position:fixed; bottom:0; left:0; right:0; display:flex; justify-content:center;}
+  .sticky-inner{width:100%; max-width:420px; padding:16px 20px; background:var(--ink);}
+  .sticky-baska{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.12);}
+  .sticky-baska-label{font-size:11px; color:rgba(255,255,255,0.7); font-weight:600;}
+  .sticky-baska-val{font-size:13px; font-weight:700; color:var(--purple); font-family:'Courier New',monospace;}
+  .sticky-main{display:flex; align-items:center; justify-content:space-between;}
+  .sticky-total-label{font-size:10px; color:rgba(255,255,255,0.5); font-weight:600; letter-spacing:0.02em;}
+  .sticky-total-val{font-size:24px; font-weight:800; color:#fff; font-family:'Courier New',monospace;}
+  .sticky-self{font-size:10px; color:rgba(255,255,255,0.45); margin-top:2px;}
+  .sticky-icon{width:36px; height:36px; border-radius:999px; background:var(--coral); display:flex; align-items:center; justify-content:center; font-size:15px;}
+  .datalist-hint{font-size:9.5px; color:var(--muted); margin-top:4px; padding-left:2px;}
+  .compare-card{margin:0 16px 16px;}
+  .compare-title{font-size:12.5px; font-weight:800; margin:0 0 8px 2px;}
+  .compare-list{border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 8px 24px -8px rgba(22,36,28,0.1);}
+  .compare-row{display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid #EEF0EC;}
+  .compare-row:last-child{border-bottom:none;}
+  .compare-name{font-size:12px; font-weight:700;}
+  .compare-sub{font-size:10px; color:var(--muted); margin-top:1px;}
+  .compare-delta{font-size:12px; font-weight:800; font-family:'Courier New',monospace; display:flex; align-items:center; gap:3px;}
+  .archive-list{border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 8px 24px -8px rgba(22,36,28,0.1); margin-bottom:20px;}
+  .archive-row{border-bottom:1px solid #EEF0EC;}
+  .archive-row:last-child{border-bottom:none;}
+  .archive-head{width:100%; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:none; border:none; cursor:pointer; text-align:left; font-family:inherit;}
+  .archive-name{font-size:12.5px; font-weight:700;}
+  .archive-count{font-size:10px; color:var(--muted); margin-top:1px;}
+  .archive-total{font-size:13px; font-weight:800; font-family:'Courier New',monospace;}
+  .archive-detail{padding:0 16px 12px;}
+  .archive-item{display:flex; align-items:center; justify-content:space-between; padding:3px 0; font-size:11px;}
+  .archive-item span:last-child{color:var(--muted); font-family:'Courier New',monospace; font-size:10.5px;}
+  .archive-del{font-size:10px; color:#D14D3C; font-weight:600; background:none; border:none; padding:0; margin-top:6px; cursor:pointer;}
+  .backup-card{margin:0 16px 20px; border-radius:16px; padding:12px; background:#fff; border:1px solid rgba(31,122,92,0.2);}
+  .backup-card textarea{width:100%; font-size:9px; padding:8px; border-radius:10px; border:none; outline:none; background:var(--bg); font-family:'Courier New',monospace; resize:none;}
+  .backup-card .msg{font-size:9.5px; color:var(--green); font-weight:600; margin-top:4px;}
+  .loading{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============ VERİ / DEPOLAMA ============ */
+const K_URUNLER = "ml_urunler";
+const K_GECMISI = "ml_urun_gecmisi";
+const K_ARSIV = "ml_gecmis_alisverisler";
+
+function yukle(anahtar, varsayilan) {
+  try {
+    const v = localStorage.getItem(anahtar);
+    return v ? JSON.parse(v) : varsayilan;
+  } catch (e) { return varsayilan; }
+}
+function kaydet(anahtar, deger) {
+  try { localStorage.setItem(anahtar, JSON.stringify(deger)); } catch (e) { /* sessiz geç */ }
+}
+
+let S = {
+  urunler: yukle(K_URUNLER, []),
+  urunGecmisi: yukle(K_GECMISI, []),
+  arsiv: yukle(K_ARSIV, []),
+  editingId: null,
+  arama: "",
+  mod: "liste",
+  birim: "gram",
+  kacTane: 1,
+  baskaAcik: false,
+  kaydetPaneliAcik: false,
+  acikArsiv: null,
+  yedekAcik: false,
+};
+
+function urunKaydet(){ kaydet(K_URUNLER, S.urunler); }
+function gecmisKaydet(){ kaydet(K_GECMISI, S.urunGecmisi); }
+function arsivKaydet(){ kaydet(K_ARSIV, S.arsiv); }
+
+/* ============ YARDIMCI ============ */
+const paraFmt = (n) => (n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const miktarFmt = (n) => (n || 0).toLocaleString("tr-TR", { maximumFractionDigits: 0 });
+const esc = (s) => (s || "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const bugununAdi = () => new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+
+function birimFiyatiHesapla(fiyat, miktar, birim) {
+  if (!(fiyat > 0) || !(miktar > 0)) return null;
+  return birim === "gram" ? (fiyat / miktar) * 1000 : fiyat / miktar;
+}
+
+function tumUrunKayitlari() {
+  const kayitlar = {};
+  const listeler = [...S.arsiv.map(a => ({ tarih: a.tarih, urunler: a.urunler })), { tarih: new Date().toISOString(), urunler: S.urunler }];
+  listeler.forEach(liste => {
+    liste.urunler.forEach(u => {
+      if (!u.ad || u.ad === "Ürün") return;
+      const key = u.ad.trim().toLocaleLowerCase("tr");
+      const mevcut = kayitlar[key];
+      if (!mevcut || new Date(liste.tarih) >= new Date(mevcut.tarih)) {
+        kayitlar[key] = { ad: u.ad, birim: u.birim, fiyat: u.fiyat, miktar: u.miktar, birimFiyati: u.birimFiyati, tarih: liste.tarih };
+      }
+    });
+  });
+  return kayitlar;
+}
+
+/* ============ ANA RENDER ============ */
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="wrap">
+      <div class="header">
+        <div class="header-left">
+          <div class="logo">🧺</div>
+          <div>
+            <h1>Market Listem</h1>
+            <p class="subtitle">${new Date().toLocaleDateString("tr-TR",{day:"2-digit",month:"long"})}</p>
+          </div>
+        </div>
+        <div class="header-right" id="header-right"></div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab ${S.mod==="liste"?"active":""}" data-action="mod" data-mod="liste">Liste</button>
+        <button class="tab ${S.mod==="gecmis"?"active":""}" data-action="mod" data-mod="gecmis">📜 Geçmiş ${S.arsiv.length>0?`(${S.arsiv.length})`:""}</button>
+      </div>
+
+      <div id="liste-panel" style="display:${S.mod==="liste"?"block":"none"}">
+        <div class="card">
+          <div id="edit-banner">
+            <span>Kayıt düzenleniyor</span>
+            <button data-action="duzenle-iptal">✕ Vazgeç</button>
+          </div>
+          <input type="text" id="ad-input" list="urun-datalist" placeholder="Ürün adı (opsiyonel)" autocomplete="off" />
+          <datalist id="urun-datalist"></datalist>
+          <div class="datalist-hint">Yazarken önceki alışverişlerinden öneriler çıkar</div>
+
+          <div class="unit-toggle">
+            <button class="unit-btn ${S.birim==="gram"?"active":""}" data-action="birim" data-birim="gram">
+              <div class="t1">Gram ile</div><div class="t2">tavuk, meyve...</div>
+            </button>
+            <button class="unit-btn ${S.birim==="adet"?"active":""}" data-action="birim" data-birim="adet">
+              <div class="t1">Adet ile</div><div class="t2">koli, paket...</div>
+            </button>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>FİYAT (₺)</label>
+              <input type="text" inputmode="decimal" id="fiyat-input" placeholder="0,00" />
+            </div>
+            <div class="field">
+              <label id="miktar-label">${S.birim==="gram"?"GRAMAJ (g)":"KOLİDEKİ ADET"}</label>
+              <input type="text" inputmode="decimal" id="miktar-input" placeholder="${S.birim==="gram"?"0":"6, 24..."}" />
+            </div>
+          </div>
+
+          <div class="stepper-row">
+            <span class="stepper-label">Kaç tane aldın?</span>
+            <div class="stepper">
+              <button class="minus" data-action="kactane-eksi">−</button>
+              <span id="kac-tane-val">${S.kacTane}</span>
+              <button class="plus" data-action="kactane-arti">+</button>
+            </div>
+          </div>
+
+          <div class="preview" id="preview-box"></div>
+
+          <button id="submit-btn" data-action="kaydet-urun" disabled>+ Listeye ekle</button>
+        </div>
+
+        ${S.urunler.length>0?`
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="arama-input" placeholder="Listede ara..." value="${esc(S.arama)}" />
+          ${S.arama?`<button class="search-clear" data-action="arama-temizle">✕</button>`:""}
+        </div>`:""}
+
+        <div id="baska-toggle-wrap"></div>
+        <div id="baska-panel-wrap"></div>
+
+        <div id="urun-listesi"></div>
+
+        <div class="save-card" id="save-card-wrap"></div>
+      </div>
+
+      <div id="gecmis-panel" style="display:${S.mod==="gecmis"?"block":"none"}"></div>
+
+      <div class="backup-card">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:10.5px; font-weight:700;">Yedek al / geri yükle</span>
+          <button class="linkbtn green" data-action="yedek-toggle">${S.yedekAcik?"gizle":"göster"}</button>
+        </div>
+        ${S.yedekAcik?`
+          <div style="margin-top:8px;">
+            <textarea id="yedek-metin" readonly style="height:60px;" onclick="this.select()"></textarea>
+            <button class="save-btn" style="margin-top:6px;" data-action="yedek-kopyala">Panoya Kopyala</button>
+          </div>
+          <div style="margin-top:10px;">
+            <textarea id="iceaktar-metin" placeholder="Yedek metnini buraya yapıştır" style="height:50px;"></textarea>
+            <button class="save-btn" style="margin-top:6px; background:var(--coral); color:#fff; border:none;" data-action="yedek-iceaktar">İçe Aktar</button>
+          </div>
+          <div class="msg" id="yedek-mesaj"></div>
+        `:""}
+      </div>
+    </div>
+
+    <div class="sticky" id="sticky-wrap"></div>
+  `;
+
+  bindForm();
+  renderHeaderRight();
+  renderPreview();
+  renderList();
+  renderBaska();
+  renderSaveCard();
+  renderSticky();
+  if (S.mod === "gecmis") renderGecmis();
+  if (S.yedekAcik) {
+    document.getElementById("yedek-metin").value = JSON.stringify({ urunler: S.urunler, urunGecmisi: S.urunGecmisi, arsiv: S.arsiv });
+  }
+  renderDatalist();
+}
+
+/* ============ HEADER ============ */
+function renderHeaderRight() {
+  const el = document.getElementById("header-right");
+  if (S.urunler.length === 0) { el.innerHTML = ""; return; }
+  const toplamAdet = S.urunler.reduce((a,u)=>a+u.kacTane,0);
+  el.innerHTML = `
+    <div class="badge">${toplamAdet} ürün</div>
+    <button class="linkbtn green" data-action="siralaAZ">A-Z</button>
+    <button class="linkbtn" data-action="temizle">Temizle</button>
+  `;
+}
+
+/* ============ FORM ============ */
+function bindForm() {
+  const adInput = document.getElementById("ad-input");
+  const fiyatInput = document.getElementById("fiyat-input");
+  const miktarInput = document.getElementById("miktar-input");
+
+  adInput.addEventListener("input", () => {
+    const kayit = tumUrunKayitlari()[adInput.value.trim().toLocaleLowerCase("tr")];
+    if (kayit && adInput.value.trim().toLocaleLowerCase("tr") === kayit.ad.toLocaleLowerCase("tr")) {
+      S.birim = kayit.birim;
+      fiyatInput.value = String(kayit.fiyat).replace(".", ",");
+      miktarInput.value = String(kayit.miktar).replace(".", ",");
+      document.getElementById("miktar-label").textContent = S.birim==="gram" ? "GRAMAJ (g)" : "KOLİDEKİ ADET";
+      document.querySelectorAll(".unit-btn").forEach(b => b.classList.toggle("active", b.dataset.birim === S.birim));
+      renderPreview();
+    }
+  });
+
+  fiyatInput.addEventListener("input", renderPreview);
+  miktarInput.addEventListener("input", renderPreview);
+}
+
+function formDegerleri() {
+  const ad = document.getElementById("ad-input")?.value || "";
+  const fiyat = parseFloat((document.getElementById("fiyat-input")?.value || "").replace(",", "."));
+  const miktar = parseFloat((document.getElementById("miktar-input")?.value || "").replace(",", "."));
+  return { ad, fiyat, miktar };
+}
+
+function renderPreview() {
+  const { fiyat, miktar } = formDegerleri();
+  const gecerli = fiyat > 0 && miktar > 0 && S.kacTane > 0;
+  const bf = birimFiyatiHesapla(fiyat, miktar, S.birim);
+  const satirToplami = gecerli ? fiyat * S.kacTane : null;
+  const box = document.getElementById("preview-box");
+  box.innerHTML = `
+    <div class="preview-row">
+      <span>${S.birim==="gram"?"Kilogram fiyatı":"Birim (tane) fiyatı"}</span>
+      <span style="color:${bf?"var(--green)":"var(--muted)"}">${bf?`₺${paraFmt(bf)} / ${S.birim==="gram"?"kg":"adet"}`:"—"}</span>
+    </div>
+    ${S.kacTane>1 && satirToplami ? `
+    <div class="preview-sub">
+      <span>${S.kacTane} tane toplamı</span>
+      <span>₺${paraFmt(satirToplami)}</span>
+    </div>`:""}
+  `;
+  document.getElementById("submit-btn").disabled = !gecerli;
+  const btn = document.getElementById("submit-btn");
+  btn.innerHTML = S.editingId ? "✓ Değişikliği kaydet" : "+ Listeye ekle";
+  btn.style.background = gecerli ? (S.editingId ? "var(--coral)" : "var(--ink)") : "#D8DCD8";
+}
+
+function renderDatalist() {
+  const dl = document.getElementById("urun-datalist");
+  if (!dl) return;
+  const kayitlar = tumUrunKayitlari();
+  const isimSeti = new Map();
+  Object.values(kayitlar).forEach(k => isimSeti.set(k.ad.toLocaleLowerCase("tr"), k.ad));
+  S.urunGecmisi.forEach(n => { if (!isimSeti.has(n.toLocaleLowerCase("tr"))) isimSeti.set(n.toLocaleLowerCase("tr"), n); });
+  dl.innerHTML = Array.from(isimSeti.values()).map(n => `<option value="${esc(n)}"></option>`).join("");
+}
+
+/* ============ EKLE / GÜNCELLE ============ */
+function kaydetUrun() {
+  const { ad, fiyat, miktar } = formDegerleri();
+  const gecerli = fiyat > 0 && miktar > 0 && S.kacTane > 0;
+  if (!gecerli) return;
+  const isim = ad.trim() || "Ürün";
+  if (isim !== "Ürün" && !S.urunGecmisi.some(n => n.toLocaleLowerCase("tr") === isim.toLocaleLowerCase("tr"))) {
+    S.urunGecmisi = [isim, ...S.urunGecmisi].slice(0, 200);
+    gecmisKaydet();
+  }
+  const birimFiyati = birimFiyatiHesapla(fiyat, miktar, S.birim);
+  const satirToplami = fiyat * S.kacTane;
+
+  if (S.editingId) {
+    S.urunler = S.urunler.map(u => u.id === S.editingId ? {
+      ...u, ad: isim, birim: S.birim, fiyat, miktar, kacTane: S.kacTane, birimFiyati, satirToplami,
+      baskasiAdet: Math.min(u.baskasiAdet || 0, S.kacTane),
+    } : u);
+  } else {
+    S.urunler = [{ id: Date.now(), ad: isim, birim: S.birim, fiyat, miktar, kacTane: S.kacTane, birimFiyati, satirToplami, baskasiAdet: 0, kimIcin: "" }, ...S.urunler];
+  }
+  urunKaydet();
+  formuTemizle();
+  render();
+}
+
+function formuTemizle() {
+  S.editingId = null;
+  S.birim = "gram";
+  S.kacTane = 1;
+}
+
+function duzenle(id) {
+  const u = S.urunler.find(x => x.id === id);
+  if (!u) return;
+  S.editingId = id;
+  S.birim = u.birim;
+  S.kacTane = u.kacTane;
+  render();
+  document.getElementById("ad-input").value = u.ad === "Ürün" ? "" : u.ad;
+  document.getElementById("fiyat-input").value = String(u.fiyat).replace(".", ",");
+  document.getElementById("miktar-input").value = String(u.miktar).replace(".", ",");
+  document.getElementById("edit-banner").style.display = "flex";
+  renderPreview();
+  document.querySelector(".card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function sil(id) {
+  S.urunler = S.urunler.filter(u => u.id !== id);
+  if (S.editingId === id) formuTemizle();
+  urunKaydet();
+  render();
+}
+
+/* ============ LİSTE ============ */
+function renderList() {
+  const el = document.getElementById("urun-listesi");
+  if (!el) return;
+  const q = S.arama.trim().toLocaleLowerCase("tr");
+  const gosterilecek = q ? S.urunler.filter(u => u.ad.toLocaleLowerCase("tr").includes(q)) : S.urunler;
+
+  if (gosterilecek.length === 0) {
+    el.innerHTML = S.urunler.length > 0
+      ? `<div class="empty-state">🔍<br/>"${esc(S.arama)}" ile eşleşen ürün yok.</div>`
+      : `<div class="empty-state">🥕<br/>Henüz ürün eklemedin.<br/>İlk ürününü yukarıdan ekle.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="list-card">` + gosterilecek.map(u => {
+    const i = S.urunler.findIndex(x => x.id === u.id);
+    const baskasi = (u.baskasiAdet || 0) > 0;
+    return `
+    <div class="item-row ${S.editingId===u.id?"editing":""} ${baskasi?"baskasi":""}">
+      <button class="person-btn" data-action="baskasi-arttir" data-id="${u.id}">
+        <div class="person-circle ${baskasi?"active":""}">${baskasi ? (u.kacTane>1?`${u.baskasiAdet}/${u.kacTane}`:"👤") : "👤"}</div>
+      </button>
+      <div class="item-info" data-action="duzenle-satir" data-id="${u.id}">
+        <div class="item-name ${baskasi?"baskasi":""}">
+          ${esc(u.ad)}
+          ${u.kacTane>1?`<span class="item-tag tag-kacTane">×${u.kacTane}</span>`:""}
+          ${baskasi?`<span class="item-tag tag-baskasi">${u.kacTane>1?`${u.baskasiAdet}/${u.kacTane} `:""}${u.kimIcin?esc(u.kimIcin)+" için":"başkası için"}</span>`:""}
+        </div>
+        <div class="item-sub">${u.birim==="gram"?`${miktarFmt(u.miktar)} g · ₺${paraFmt(u.birimFiyati)}/kg`:`${miktarFmt(u.miktar)} adet/koli · ₺${paraFmt(u.birimFiyati)}/adet`}</div>
+        ${baskasi?`<input class="kim-input" data-action="kimicin" data-id="${u.id}" placeholder="kimin için? (isim yaz)" value="${esc(u.kimIcin||"")}" onclick="event.stopPropagation()" />`:""}
+      </div>
+      <span class="item-price ${baskasi?"baskasi":""}">₺${paraFmt(u.satirToplami)}</span>
+      <div class="reorder-actions">
+        <button data-action="yukari" data-id="${u.id}" ${i===0?"disabled":""}>▲</button>
+        <button data-action="asagi" data-id="${u.id}" ${i===S.urunler.length-1?"disabled":""}>▼</button>
+      </div>
+      <div class="item-actions">
+        <button data-action="duzenle-satir" data-id="${u.id}">✏️</button>
+        <button data-action="sil" data-id="${u.id}">🗑️</button>
+      </div>
+    </div>`;
+  }).join("") + `</div>`;
+}
+
+/* ============ BAŞKASI İÇİN ============ */
+function renderBaska() {
+  const toplamBaskasi = S.urunler.reduce((a,u)=>a + u.fiyat*(u.baskasiAdet||0), 0);
+  const adetBaskasi = S.urunler.reduce((a,u)=>a + (u.baskasiAdet||0), 0);
+  const toggleWrap = document.getElementById("baska-toggle-wrap");
+  const panelWrap = document.getElementById("baska-panel-wrap");
+  if (toplamBaskasi <= 0) { toggleWrap.innerHTML=""; panelWrap.innerHTML=""; return; }
+
+  toggleWrap.innerHTML = `
+    <button class="baska-toggle" data-action="baska-toggle">
+      <span>👤 Başkaları için (${adetBaskasi} adet · ₺${paraFmt(toplamBaskasi)})</span>
+      <span style="font-size:10px; color:var(--purple);">${S.baskaAcik?"gizle":"göster"}</span>
+    </button>`;
+
+  if (!S.baskaAcik) { panelWrap.innerHTML = ""; return; }
+
+  const gruplar = {};
+  S.urunler.forEach(u => {
+    if ((u.baskasiAdet||0) > 0) {
+      const key = (u.kimIcin||"").trim() || "İsim belirtilmedi";
+      if (!gruplar[key]) gruplar[key] = [];
+      gruplar[key].push(u);
+    }
+  });
+
+  panelWrap.innerHTML = `<div class="baska-panel">` + Object.entries(gruplar).map(([kisi, liste]) => {
+    const grupToplami = liste.reduce((a,u)=>a + u.fiyat*u.baskasiAdet, 0);
+    return `
+      <div class="baska-group-head"><span>${esc(kisi)}</span><span>₺${paraFmt(grupToplami)}</span></div>
+      ${liste.map(u=>`<div class="baska-item"><span>${esc(u.ad)} ${u.kacTane>1?`(${u.baskasiAdet}/${u.kacTane})`:""}</span><span>₺${paraFmt(u.fiyat*u.baskasiAdet)}</span></div>`).join("")}
+      <div style="padding-bottom:8px;"></div>
+    `;
+  }).join("") + `</div>`;
+}
+
+/* ============ ALIŞVERİŞİ KAYDET ============ */
+function renderSaveCard() {
+  const el = document.getElementById("save-card-wrap");
+  if (S.urunler.length === 0) { el.innerHTML = ""; return; }
+  if (!S.kaydetPaneliAcik) {
+    el.innerHTML = `<button class="save-btn" data-action="kaydet-panel-ac">💾 Alışverişi Bitir ve Kaydet</button>`;
+  } else {
+    el.innerHTML = `
+      <div class="save-panel">
+        <label>Bu alışverişe bir isim ver</label>
+        <input type="text" id="alisveris-adi" placeholder="${bugununAdi()}" />
+        <div class="actions">
+          <button class="btn-cancel" data-action="kaydet-panel-iptal">Vazgeç</button>
+          <button class="btn-confirm" data-action="alisveris-kaydet">Kaydet ve Yeni Listeye Başla</button>
+        </div>
+      </div>`;
+  }
+}
+
+function alisverisiKaydet() {
+  if (S.urunler.length === 0) return;
+  const isimInput = document.getElementById("alisveris-adi");
+  const isim = (isimInput?.value || "").trim() || bugununAdi();
+  S.arsiv = [{ id: Date.now(), isim, tarih: new Date().toISOString(), urunler: S.urunler }, ...S.arsiv];
+  arsivKaydet();
+  S.urunler = [];
+  urunKaydet();
+  S.kaydetPaneliAcik = false;
+  formuTemizle();
+  render();
+}
+
+/* ============ GEÇMİŞ SEKMESİ ============ */
+function fiyatKarsilastirma() {
+  const gruplar = {};
+  const sirali = [...S.arsiv].sort((a,b)=> new Date(a.tarih) - new Date(b.tarih));
+  sirali.forEach(a => {
+    a.urunler.forEach(u => {
+      if (!u.birimFiyati) return;
+      const key = u.ad.trim().toLocaleLowerCase("tr");
+      if (!gruplar[key]) gruplar[key] = [];
+      gruplar[key].push({ ad: u.ad, tarih: a.tarih, birimFiyati: u.birimFiyati, birim: u.birim });
+    });
+  });
+  const sonuc = [];
+  Object.values(gruplar).forEach(kayitlar => {
+    if (kayitlar.length < 2) return;
+    const onceki = kayitlar[kayitlar.length-2];
+    const sonraki = kayitlar[kayitlar.length-1];
+    if (onceki.birim !== sonraki.birim) return;
+    const fark = sonraki.birimFiyati - onceki.birimFiyati;
+    const yuzde = onceki.birimFiyati > 0 ? (fark/onceki.birimFiyati)*100 : 0;
+    sonuc.push({ ad: sonraki.ad, birim: sonraki.birim, onceki, sonraki, fark, yuzde });
+  });
+  sonuc.sort((a,b)=>Math.abs(b.yuzde)-Math.abs(a.yuzde));
+  return sonuc;
+}
+
+function renderGecmis() {
+  const el = document.getElementById("gecmis-panel");
+  const karsilastirma = fiyatKarsilastirma();
+  let html = "";
+
+  if (karsilastirma.length > 0) {
+    html += `
+      <div class="compare-card">
+        <p class="compare-title">Fiyat Karşılaştırması</p>
+        <div class="compare-list">
+          ${karsilastirma.map(k => {
+            const artti = k.fark > 0.005, azaldi = k.fark < -0.005;
+            const renk = artti ? "#D14D3C" : azaldi ? "var(--green)" : "var(--muted)";
+            const ok = artti ? "▲" : azaldi ? "▼" : "–";
+            return `
+            <div class="compare-row">
+              <div>
+                <div class="compare-name">${esc(k.ad)}</div>
+                <div class="compare-sub">₺${paraFmt(k.onceki.birimFiyati)} → ₺${paraFmt(k.sonraki.birimFiyati)} /${k.birim==="gram"?"kg":"adet"}</div>
+              </div>
+              <div class="compare-delta" style="color:${renk}">${ok} ${artti?"+":""}${paraFmt(k.yuzde)}%</div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>`;
+  }
+
+  html += `<div style="margin:0 16px;"><p class="compare-title">Kayıtlı Alışverişler</p>`;
+  if (S.arsiv.length === 0) {
+    html += `<div class="empty-state" style="margin:0 0 16px;">📜<br/>Henüz kaydedilmiş alışveriş yok.<br/>Liste sekmesinde "Alışverişi Bitir ve Kaydet" ile başla.</div>`;
+  } else {
+    html += `<div class="archive-list">` + S.arsiv.map(a => {
+      const acik = S.acikArsiv === a.id;
+      const t = a.urunler.reduce((s,u)=>s+u.satirToplami,0);
+      return `
+      <div class="archive-row">
+        <button class="archive-head" data-action="arsiv-toggle" data-id="${a.id}">
+          <div>
+            <div class="archive-name">${esc(a.isim)}</div>
+            <div class="archive-count">${a.urunler.length} kalem</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="archive-total">₺${paraFmt(t)}</span>
+            <span style="color:var(--muted); font-size:11px; transform:rotate(${acik?90:0}deg); display:inline-block;">›</span>
+          </div>
+        </button>
+        ${acik?`
+        <div class="archive-detail">
+          ${a.urunler.map(u=>`<div class="archive-item"><span>${esc(u.ad)}</span><span>₺${paraFmt(u.satirToplami)}</span></div>`).join("")}
+          <button class="archive-del" data-action="arsiv-sil" data-id="${a.id}">Bu kaydı sil</button>
+        </div>`:""}
+      </div>`;
+    }).join("") + `</div>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+/* ============ ALT TOPLAM ÇUBUĞU ============ */
+function renderSticky() {
+  const el = document.getElementById("sticky-wrap");
+  if (S.mod !== "liste" || S.urunler.length === 0) { el.innerHTML = ""; return; }
+  const toplam = S.urunler.reduce((a,u)=>a+u.satirToplami,0);
+  const toplamBaskasi = S.urunler.reduce((a,u)=>a + u.fiyat*(u.baskasiAdet||0), 0);
+  const adetBaskasi = S.urunler.reduce((a,u)=>a + (u.baskasiAdet||0), 0);
+  el.innerHTML = `
+    <div class="sticky-inner">
+      ${toplamBaskasi>0?`
+      <div class="sticky-baska">
+        <span class="sticky-baska-label">👤 Başkası için (${adetBaskasi} adet)</span>
+        <span class="sticky-baska-val">₺${paraFmt(toplamBaskasi)}</span>
+      </div>`:""}
+      <div class="sticky-main">
+        <div>
+          <div class="sticky-total-label">TOPLAM · ${S.urunler.length} kalem</div>
+          <div class="sticky-total-val">₺${paraFmt(toplam)}</div>
+          ${toplamBaskasi>0?`<div class="sticky-self">Kendim: ₺${paraFmt(toplam-toplamBaskasi)}</div>`:""}
+        </div>
+        <div class="sticky-icon">🧺</div>
+      </div>
+    </div>`;
+}
+
+/* ============ OLAY YÖNETİMİ (event delegation) ============ */
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-action]");
+  if (!t) return;
+  const action = t.dataset.action;
+  const id = t.dataset.id ? Number(t.dataset.id) : null;
+
+  if (action === "mod") { S.mod = t.dataset.mod; S.acikArsiv = null; render(); }
+  else if (action === "siralaAZ") { S.urunler.sort((a,b)=>a.ad.localeCompare(b.ad,"tr")); urunKaydet(); render(); }
+  else if (action === "temizle") { if (confirm("Tüm liste silinsin mi?")) { S.urunler = []; urunKaydet(); render(); } }
+  else if (action === "birim") {
+    S.birim = t.dataset.birim;
+    document.getElementById("miktar-label").textContent = S.birim==="gram"?"GRAMAJ (g)":"KOLİDEKİ ADET";
+    document.getElementById("miktar-input").placeholder = S.birim==="gram"?"0":"6, 24...";
+    document.querySelectorAll(".unit-btn").forEach(b=>b.classList.toggle("active", b.dataset.birim===S.birim));
+    renderPreview();
+  }
+  else if (action === "kactane-eksi") { S.kacTane = Math.max(1, S.kacTane-1); document.getElementById("kac-tane-val").textContent = S.kacTane; renderPreview(); }
+  else if (action === "kactane-arti") { S.kacTane += 1; document.getElementById("kac-tane-val").textContent = S.kacTane; renderPreview(); }
+  else if (action === "kaydet-urun") { kaydetUrun(); }
+  else if (action === "duzenle-iptal") { formuTemizle(); render(); }
+  else if (action === "duzenle-satir") { duzenle(id); }
+  else if (action === "sil") { sil(id); }
+  else if (action === "yukari") { const i=S.urunler.findIndex(x=>x.id===id); if(i>0){[S.urunler[i-1],S.urunler[i]]=[S.urunler[i],S.urunler[i-1]]; urunKaydet(); render();} }
+  else if (action === "asagi") { const i=S.urunler.findIndex(x=>x.id===id); if(i<S.urunler.length-1){[S.urunler[i],S.urunler[i+1]]=[S.urunler[i+1],S.urunler[i]]; urunKaydet(); render();} }
+  else if (action === "baskasi-arttir") {
+    S.urunler = S.urunler.map(u => u.id===id ? {...u, baskasiAdet: ((u.baskasiAdet||0)+1) % (u.kacTane+1)} : u);
+    urunKaydet(); render();
+  }
+  else if (action === "baska-toggle") { S.baskaAcik = !S.baskaAcik; renderBaska(); }
+  else if (action === "arama-temizle") { S.arama=""; render(); }
+  else if (action === "kaydet-panel-ac") { S.kaydetPaneliAcik = true; renderSaveCard(); document.getElementById("alisveris-adi").focus(); }
+  else if (action === "kaydet-panel-iptal") { S.kaydetPaneliAcik = false; renderSaveCard(); }
+  else if (action === "alisveris-kaydet") { alisverisiKaydet(); }
+  else if (action === "arsiv-toggle") { S.acikArsiv = S.acikArsiv===id?null:id; renderGecmis(); }
+  else if (action === "arsiv-sil") { S.arsiv = S.arsiv.filter(a=>a.id!==id); arsivKaydet(); renderGecmis(); }
+  else if (action === "yedek-toggle") { S.yedekAcik = !S.yedekAcik; render(); }
+  else if (action === "yedek-kopyala") {
+    const metin = document.getElementById("yedek-metin").value;
+    navigator.clipboard.writeText(metin).then(()=>{ document.getElementById("yedek-mesaj").textContent = "Panoya kopyalandı."; })
+      .catch(()=>{ document.getElementById("yedek-mesaj").textContent = "Otomatik kopyalanamadı, metni elle seç ve kopyala."; });
+  }
+  else if (action === "yedek-iceaktar") {
+    try {
+      const obj = JSON.parse(document.getElementById("iceaktar-metin").value);
+      if (!Array.isArray(obj.urunler)) throw new Error("format");
+      S.urunler = obj.urunler; urunKaydet();
+      if (Array.isArray(obj.urunGecmisi)) { S.urunGecmisi = obj.urunGecmisi; gecmisKaydet(); }
+      if (Array.isArray(obj.arsiv)) { S.arsiv = obj.arsiv; arsivKaydet(); }
+      document.getElementById("yedek-mesaj").textContent = `${obj.urunler.length} ürün geri yüklendi.`;
+      render();
+    } catch (e) {
+      document.getElementById("yedek-mesaj").textContent = "Bu metin okunamadı, formatı kontrol et.";
+    }
+  }
+});
+
+document.addEventListener("input", (e) => {
+  if (e.target.id === "arama-input") { S.arama = e.target.value; renderList(); }
+  if (e.target.dataset && e.target.dataset.action === "kimicin") {
+    const id = Number(e.target.dataset.id);
+    S.urunler = S.urunler.map(u => u.id===id ? {...u, kimIcin: e.target.value} : u);
+  }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.dataset && e.target.dataset.action === "kimicin") { urunKaydet(); }
+});
+
+/* ============ BAŞLAT ============ */
+render();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
