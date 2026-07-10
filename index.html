@@ -293,13 +293,24 @@ function render() {
         </div>
         ${S.yedekAcik?`
           <div style="margin-top:8px;">
-            <textarea id="yedek-metin" readonly style="height:60px;" onclick="this.select()"></textarea>
-            <button class="save-btn" style="margin-top:6px;" data-action="yedek-kopyala">Panoya Kopyala</button>
+            <p style="font-size:9.5px; color:var(--muted); margin:0 0 6px;">Listeni bir dosya olarak indir, başka bir cihazda o dosyayı seçerek geri yükle. Bu yöntem kopyala-yapıştırdan daha güvenilirdir.</p>
+            <button class="save-btn" data-action="yedek-dosya-indir">⬇ Dosya Olarak İndir (.json)</button>
+            <div style="margin-top:8px;">
+              <input type="file" id="yedek-dosya-input" accept="application/json,.json" style="display:none;" />
+              <button class="save-btn" style="background:var(--coral); color:#fff; border:none;" data-action="yedek-dosya-sec">⬆ Dosyadan Geri Yükle</button>
+            </div>
           </div>
-          <div style="margin-top:10px;">
-            <textarea id="iceaktar-metin" placeholder="Yedek metnini buraya yapıştır" style="height:50px;"></textarea>
-            <button class="save-btn" style="margin-top:6px; background:var(--coral); color:#fff; border:none;" data-action="yedek-iceaktar">İçe Aktar</button>
-          </div>
+          <details style="margin-top:10px;">
+            <summary style="font-size:9.5px; color:var(--muted); cursor:pointer;">Metin ile kopyala/yapıştır (alternatif)</summary>
+            <div style="margin-top:8px;">
+              <textarea id="yedek-metin" readonly style="height:60px;" onclick="this.select()"></textarea>
+              <button class="save-btn" style="margin-top:6px;" data-action="yedek-kopyala">Panoya Kopyala</button>
+            </div>
+            <div style="margin-top:10px;">
+              <textarea id="iceaktar-metin" placeholder="Yedek metnini buraya yapıştır" style="height:50px;"></textarea>
+              <button class="save-btn" style="margin-top:6px; background:var(--coral); color:#fff; border:none;" data-action="yedek-iceaktar">Metinden İçe Aktar</button>
+            </div>
+          </details>
           <div class="msg" id="yedek-mesaj"></div>
         `:""}
       </div>
@@ -707,23 +718,60 @@ document.addEventListener("click", (e) => {
   else if (action === "arsiv-toggle") { S.acikArsiv = S.acikArsiv===id?null:id; renderGecmis(); }
   else if (action === "arsiv-sil") { S.arsiv = S.arsiv.filter(a=>a.id!==id); arsivKaydet(); renderGecmis(); }
   else if (action === "yedek-toggle") { S.yedekAcik = !S.yedekAcik; render(); }
+  else if (action === "yedek-dosya-indir") {
+    const veri = JSON.stringify({ urunler: S.urunler, urunGecmisi: S.urunGecmisi, arsiv: S.arsiv }, null, 2);
+    const blob = new Blob([veri], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const tarihEtiketi = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `market-listem-yedek-${tarihEtiketi}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    document.getElementById("yedek-mesaj").textContent = "Dosya indirildi. Diğer cihazda 'Dosyadan Geri Yükle' ile aç.";
+  }
+  else if (action === "yedek-dosya-sec") {
+    document.getElementById("yedek-dosya-input").click();
+  }
   else if (action === "yedek-kopyala") {
     const metin = document.getElementById("yedek-metin").value;
     navigator.clipboard.writeText(metin).then(()=>{ document.getElementById("yedek-mesaj").textContent = "Panoya kopyalandı."; })
       .catch(()=>{ document.getElementById("yedek-mesaj").textContent = "Otomatik kopyalanamadı, metni elle seç ve kopyala."; });
   }
   else if (action === "yedek-iceaktar") {
-    try {
-      const obj = JSON.parse(document.getElementById("iceaktar-metin").value);
-      if (!Array.isArray(obj.urunler)) throw new Error("format");
-      S.urunler = obj.urunler; urunKaydet();
-      if (Array.isArray(obj.urunGecmisi)) { S.urunGecmisi = obj.urunGecmisi; gecmisKaydet(); }
-      if (Array.isArray(obj.arsiv)) { S.arsiv = obj.arsiv; arsivKaydet(); }
-      document.getElementById("yedek-mesaj").textContent = `${obj.urunler.length} ürün geri yüklendi.`;
-      render();
-    } catch (e) {
-      document.getElementById("yedek-mesaj").textContent = "Bu metin okunamadı, formatı kontrol et.";
-    }
+    verideniceAktar(document.getElementById("iceaktar-metin").value);
+  }
+});
+
+function verideniceAktar(metinHam) {
+  const mesajEl = document.getElementById("yedek-mesaj");
+  try {
+    // Bazı uygulamalar (Notlar vb.) düz tırnakları "akıllı" tırnaklara çevirebiliyor — JSON bunu kabul etmez, düzeltiyoruz.
+    const temiz = metinHam.trim().replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
+    const obj = JSON.parse(temiz);
+    if (!Array.isArray(obj.urunler)) throw new Error("'urunler' listesi bulunamadı — bu doğru bir yedek dosyası/metni değil");
+    S.urunler = obj.urunler; urunKaydet();
+    if (Array.isArray(obj.urunGecmisi)) { S.urunGecmisi = obj.urunGecmisi; gecmisKaydet(); }
+    if (Array.isArray(obj.arsiv)) { S.arsiv = obj.arsiv; arsivKaydet(); }
+    mesajEl.textContent = `${obj.urunler.length} ürün geri yüklendi.`;
+    S.yedekAcik = true;
+    render();
+    document.getElementById("yedek-mesaj").textContent = `${obj.urunler.length} ürün geri yüklendi.`;
+  } catch (e) {
+    mesajEl.textContent = `Okunamadı: ${e.message}`;
+  }
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.id === "yedek-dosya-input" && e.target.files && e.target.files[0]) {
+    const dosya = e.target.files[0];
+    const okuyucu = new FileReader();
+    okuyucu.onload = () => verideniceAktar(String(okuyucu.result));
+    okuyucu.onerror = () => { document.getElementById("yedek-mesaj").textContent = "Dosya okunamadı."; };
+    okuyucu.readAsText(dosya);
+    e.target.value = "";
   }
 });
 
