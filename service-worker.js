@@ -1,4 +1,4 @@
-const CACHE_ADI = "market-listem-v1";
+const CACHE_ADI = "market-listem-v2";
 const DOSYALAR = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -15,8 +15,18 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
+// Önce ağdan (internetten) en güncel dosyayı almayı dener; başarılı olursa hem
+// kullanıcıya o güncel dosyayı verir hem de önbelleği tazeler. Sadece internet
+// yoksa (çevrimdışıyken) önbellekteki son bilinen sürümü kullanır. Böylece
+// yeni bir yükleme yaptığında kullanıcı artık eski sürümde takılı kalmaz.
 self.addEventListener("fetch", (e) => {
   e.respondWith(
-    caches.match(e.request).then((yanit) => yanit || fetch(e.request))
+    fetch(e.request)
+      .then((yanit) => {
+        const kopya = yanit.clone();
+        caches.open(CACHE_ADI).then((cache) => cache.put(e.request, kopya));
+        return yanit;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
