@@ -174,6 +174,19 @@ const K_URUNLER = "ml_urunler";
 const K_GECMISI = "ml_urun_gecmisi";
 const K_ARSIV = "ml_gecmis_alisverisler";
 const K_KAMPANYA = "ml_kart_kampanyalari";
+const K_KURALTIP = "ml_kural_tipleri";
+
+const YONTEM_SECENEKLERI = [
+  { yontem: "gunluk_toplam", ad: "Gün İçi Toplama Dayalı", aciklama: "Aynı gündeki alışverişler toplanır, o günün toplamı eşiği kaç kez geçtiyse o kadar kez ödül verir" },
+  { yontem: "her_cekim", ad: "Her Çekime Dayalı", aciklama: "Her alışveriş kendi başına ayrı değerlendirilir, eşiği geçen her alışveriş ayrı ödül verir" },
+  { yontem: "gunde_ilk", ad: "Günde Bir Kez (İlk Alışverişte)", aciklama: "Sadece günün ilk alışverişi eşiği geçiyorsa, günde tek seferlik sabit ödül verir" },
+];
+
+const VARSAYILAN_KURAL_TIPLERI = [
+  { id: "gunluk_toplam", ad: "Gün İçinde Toplam", yontem: "gunluk_toplam" },
+  { id: "her_cekim", ad: "Her Çekimde", yontem: "her_cekim" },
+  { id: "gunde_ilk", ad: "Günde Bir (İlk Alışveriş)", yontem: "gunde_ilk" },
+];
 
 function yukle(anahtar, varsayilan) {
   try { const v = localStorage.getItem(anahtar); return v ? JSON.parse(v) : varsayilan; }
@@ -188,6 +201,11 @@ let S = {
   urunGecmisi: yukle(K_GECMISI, []),
   arsiv: yukle(K_ARSIV, []),
   kartKampanyalari: yukle(K_KAMPANYA, []),
+  kuralTipleri: (() => { const y = yukle(K_KURALTIP, null); return (Array.isArray(y) && y.length > 0) ? y : VARSAYILAN_KURAL_TIPLERI; })(),
+  ktAcik: false,
+  ktAd: "",
+  ktYontem: "her_cekim",
+  ktDuzenleId: null,
   kkDuzenleId: null,
   kkHesapTutari: "",
   editingId: null,
@@ -212,6 +230,8 @@ function urunKaydet(){ kaydet(K_URUNLER, S.urunler); }
 function gecmisKaydet(){ kaydet(K_GECMISI, S.urunGecmisi); }
 function arsivKaydet(){ kaydet(K_ARSIV, S.arsiv); }
 function kampanyaKaydet(){ kaydet(K_KAMPANYA, S.kartKampanyalari); }
+function kuralTipiKaydet(){ kaydet(K_KURALTIP, S.kuralTipleri); }
+function kuralTipiBul(id) { return S.kuralTipleri.find(kt => kt.id === id) || { id, ad: "Bilinmeyen tip", yontem: "her_cekim" }; }
 
 /* ============ YARDIMCI ============ */
 const paraFmt = (n) => (n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -282,11 +302,6 @@ function fiyatKarsilastirma() {
 }
 
 /* ============ KART PUANI HESAPLAMA ============ */
-const KURAL_ETIKET = {
-  gunluk_toplam: "Gün İçinde Toplam",
-  her_cekim: "Her Çekimde",
-  gunde_ilk: "Günde Bir (İlk Alışveriş)",
-};
 
 function ayIslemleri() {
   const simdi = new Date();
@@ -304,8 +319,9 @@ function ayIslemleri() {
 
 function hesaplaKampanyaPuani(k, islemler) {
   if (islemler.length === 0) return { kazanilan: 0, tavanaTakildi: false };
+  const yontem = kuralTipiBul(k.kural).yontem;
   let hamPuan = 0;
-  if (k.kural === "her_cekim") {
+  if (yontem === "her_cekim") {
     islemler.forEach(isl => { hamPuan += Math.floor(isl.tutar / k.esik) * k.puan; });
   } else {
     const gunler = {};
@@ -314,12 +330,12 @@ function hesaplaKampanyaPuani(k, islemler) {
       if (!gunler[key]) gunler[key] = [];
       gunler[key].push(isl);
     });
-    if (k.kural === "gunluk_toplam") {
+    if (yontem === "gunluk_toplam") {
       Object.values(gunler).forEach(gi => {
         const gunToplami = gi.reduce((s,i)=>s+i.tutar,0);
         hamPuan += Math.floor(gunToplami / k.esik) * k.puan;
       });
-    } else if (k.kural === "gunde_ilk") {
+    } else if (yontem === "gunde_ilk") {
       Object.values(gunler).forEach(gi => {
         const ilk = gi.slice().sort((a,b)=>a.tarih-b.tarih)[0];
         if (ilk.tutar >= k.esik) hamPuan += k.puan;
@@ -347,7 +363,8 @@ function kkHesaplamaTutari() {
 function kkSimulasyon() {
   const tutar = kkHesaplamaTutari();
   return S.kartKampanyalari.map(k => {
-    let kazanilan = k.kural === "gunde_ilk" ? (tutar >= k.esik ? k.puan : 0) : Math.floor(tutar / k.esik) * k.puan;
+    const yontem = kuralTipiBul(k.kural).yontem;
+    let kazanilan = yontem === "gunde_ilk" ? (tutar >= k.esik ? k.puan : 0) : Math.floor(tutar / k.esik) * k.puan;
     if (k.tavan) kazanilan = Math.min(kazanilan, k.tavan);
     return { ...k, kazanilan };
   }).sort((a,b) => b.kazanilan - a.kazanilan);
@@ -500,7 +517,7 @@ function render() {
   if (S.mod === "gecmis") renderGecmis();
   if (S.mod === "puan") renderPuan();
   if (S.yedekAcik) {
-    document.getElementById("yedek-metin").value = JSON.stringify({ urunler: S.urunler, urunGecmisi: S.urunGecmisi, arsiv: S.arsiv, kartKampanyalari: S.kartKampanyalari });
+    document.getElementById("yedek-metin").value = JSON.stringify({ urunler: S.urunler, urunGecmisi: S.urunGecmisi, arsiv: S.arsiv, kartKampanyalari: S.kartKampanyalari, kuralTipleri: S.kuralTipleri });
   }
   renderDatalist();
   if (S.editingId) document.getElementById("edit-banner").style.display = "flex";
@@ -878,7 +895,7 @@ function renderPuan() {
                 <span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(124,92,252,0.1); color:var(--purple); font-weight:700;">${esc(k.kanal)}</span>
                 ${idx===0 && k.kazanilan>0 ? `<span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(31,122,92,0.1); color:var(--green); font-weight:700;">en iyi</span>` : ""}
               </div>
-              <div class="compare-sub">${KURAL_ETIKET[k.kural]} · Her ₺${paraFmt(k.esik)}'ye ₺${paraFmt(k.puan)} ${k.tavan?`· tavan ₺${paraFmt(k.tavan)}`:""}${k.tavanaTakildi?" · tavana takıldı":""}</div>
+              <div class="compare-sub">${esc(kuralTipiBul(k.kural).ad)} · Her ₺${paraFmt(k.esik)}'ye ₺${paraFmt(k.puan)} ${k.tavan?`· tavan ₺${paraFmt(k.tavan)}`:""}${k.tavanaTakildi?" · tavana takıldı":""}</div>
             </div>
             <span class="compare-delta" style="color:${k.kazanilan>0?'var(--green)':'var(--muted)'}">₺${paraFmt(k.kazanilan)}</span>
           </div>
@@ -909,19 +926,50 @@ function renderPuan() {
           <button data-action="kk-kanal" data-kanal="${k}" style="flex:1; padding:7px; border:none; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; background:${(S.kkKanal||"NFC")===k?'var(--purple)':'var(--bg)'}; color:${(S.kkKanal||"NFC")===k?'#fff':'var(--ink)'};">${k}</button>
         `).join("")}
       </div>
-      <label style="font-size:9px; color:var(--muted); font-weight:600; padding-left:2px;">KOŞUL TİPİ</label>
-      <div style="margin:4px 0 8px; display:flex; flex-direction:column; gap:6px;">
-        ${[
-          {v:"gunluk_toplam", t:"Gün İçinde Toplam", a:"Aynı gün farklı alışverişler toplanarak eşiğe bakılır"},
-          {v:"her_cekim", t:"Her Çekimde", a:"Her alışveriş kendi başına ayrı ayrı değerlendirilir"},
-          {v:"gunde_ilk", t:"Günde Bir (İlk Alışveriş)", a:"Sadece günün ilk alışverişinde, günde tek sefer geçerli"},
-        ].map(opt => `
-          <button data-action="kk-kural" data-kural="${opt.v}" style="text-align:left; border-radius:8px; padding:7px 10px; cursor:pointer; background:${(S.kkKural||"her_cekim")===opt.v?'rgba(124,92,252,0.1)':'var(--bg)'}; border:1px solid ${(S.kkKural||"her_cekim")===opt.v?'rgba(124,92,252,0.4)':'transparent'};">
-            <div style="font-size:11px; font-weight:700; color:${(S.kkKural||"her_cekim")===opt.v?'var(--purple)':'var(--ink)'};">${opt.t}</div>
-            <div style="font-size:9.5px; color:var(--muted);">${opt.a}</div>
-          </button>
-        `).join("")}
+      <div style="display:flex; align-items:center; justify-content:space-between; padding-left:2px;">
+        <label style="font-size:9px; color:var(--muted); font-weight:600;">KOŞUL TİPİ</label>
+        <button data-action="kt-toggle" style="background:none; border:none; cursor:pointer; font-size:9.5px; color:var(--green); font-weight:700;">${S.ktAcik ? "gizle" : "yönet"}</button>
       </div>
+      <div style="margin:4px 0 8px; display:flex; flex-direction:column; gap:6px;">
+        ${S.kuralTipleri.map(kt => {
+          const y = YONTEM_SECENEKLERI.find(y => y.yontem === kt.yontem) || YONTEM_SECENEKLERI[1];
+          const secili = (S.kkKural || "her_cekim") === kt.id;
+          return `
+          <button data-action="kk-kural" data-kural="${kt.id}" style="text-align:left; border-radius:8px; padding:7px 10px; cursor:pointer; background:${secili?'rgba(124,92,252,0.1)':'var(--bg)'}; border:1px solid ${secili?'rgba(124,92,252,0.4)':'transparent'};">
+            <div style="font-size:11px; font-weight:700; color:${secili?'var(--purple)':'var(--ink)'};">${esc(kt.ad)}</div>
+            <div style="font-size:9.5px; color:var(--muted);">${esc(y.aciklama)}</div>
+          </button>`;
+        }).join("")}
+      </div>
+
+      ${S.ktAcik ? `
+      <div style="border-radius:10px; padding:10px; margin-bottom:8px; background:rgba(31,122,92,0.04); border:1px solid rgba(31,122,92,0.2);">
+        <div style="font-size:10.5px; font-weight:700; margin-bottom:6px;">${S.ktDuzenleId ? "Koşul Tipini Düzenle" : "Yeni Koşul Tipi Ekle"}</div>
+        <input type="text" id="kt-ad" placeholder="Ad (örn. Haftalık Toplam)" value="${esc(S.ktAd||"")}" style="margin-bottom:6px;" />
+        <label style="font-size:9px; color:var(--muted); font-weight:600;">HANGİ HESAPLAMA YÖNTEMİYLE ÇALIŞSIN?</label>
+        <div style="margin:4px 0 8px; display:flex; flex-direction:column; gap:4px;">
+          ${YONTEM_SECENEKLERI.map(y => `
+            <button data-action="kt-yontem" data-yontem="${y.yontem}" style="text-align:left; border-radius:6px; padding:5px 8px; cursor:pointer; background:${S.ktYontem===y.yontem?'#fff':'transparent'}; border:1px solid ${S.ktYontem===y.yontem?'var(--green)':'transparent'};">
+              <div style="font-size:10.5px; font-weight:700; color:${S.ktYontem===y.yontem?'var(--green)':'var(--ink)'};">${esc(y.ad)}</div>
+            </button>
+          `).join("")}
+        </div>
+        <div style="display:flex; gap:6px;">
+          ${S.ktDuzenleId ? `<button data-action="kt-vazgec" style="flex:1; padding:7px; border:none; border-radius:8px; background:#fff; color:var(--muted); font-weight:700; font-size:10.5px;">Vazgeç</button>` : ""}
+          <button data-action="kt-kaydet" style="flex:1; padding:7px; border:none; border-radius:8px; background:var(--green); color:#fff; font-weight:700; font-size:10.5px;">${S.ktDuzenleId ? "Kaydet" : "+ Ekle"}</button>
+        </div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed rgba(31,122,92,0.25);">
+          ${S.kuralTipleri.map(kt => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 0;">
+              <span style="font-size:10.5px;">${esc(kt.ad)}</span>
+              <div style="display:flex; gap:8px;">
+                <button data-action="kt-duzenle" data-id="${kt.id}" style="background:none;border:none;cursor:pointer;">✏️</button>
+                <button data-action="kt-sil" data-id="${kt.id}" style="background:none;border:none;cursor:pointer;">🗑️</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>` : ""}
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
         <div>
           <label style="font-size:9px; color:var(--muted); font-weight:600;">EŞİK (₺)</label>
@@ -951,7 +999,7 @@ function renderPuan() {
             ${esc(k.banka)}
             <span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(124,92,252,0.1); color:var(--purple); font-weight:700;">${esc(k.kanal)}</span>
           </div>
-          <div style="font-size:10px; color:var(--muted);">₺${paraFmt(k.esik)} → ₺${paraFmt(k.puan)} ${k.tavan?`(tavan ₺${paraFmt(k.tavan)})`:"(tavansız)"} · ${KURAL_ETIKET[k.kural]||KURAL_ETIKET.her_cekim}</div>
+          <div style="font-size:10px; color:var(--muted);">₺${paraFmt(k.esik)} → ₺${paraFmt(k.puan)} ${k.tavan?`(tavan ₺${paraFmt(k.tavan)})`:"(tavansız)"} · ${esc(kuralTipiBul(k.kural).ad)}</div>
         </div>
         <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
           <button data-action="kk-duzenle" data-id="${k.id}" style="background:none;border:none;cursor:pointer;">✏️</button>
@@ -1188,6 +1236,43 @@ function kkDuzenle(id) {
   renderPuan();
 }
 
+function ktFormTemizle() {
+  S.ktAd = ""; S.ktYontem = "her_cekim"; S.ktDuzenleId = null;
+}
+
+function ktKaydet() {
+  const ad = (document.getElementById("kt-ad").value || "").trim();
+  if (!ad) return;
+  const kayit = { id: S.ktDuzenleId || `ozel_${Date.now()}`, ad, yontem: S.ktYontem || "her_cekim" };
+  if (S.ktDuzenleId) {
+    S.kuralTipleri = S.kuralTipleri.map(kt => kt.id === S.ktDuzenleId ? kayit : kt);
+  } else {
+    S.kuralTipleri = [...S.kuralTipleri, kayit];
+  }
+  kuralTipiKaydet();
+  ktFormTemizle();
+  renderPuan();
+}
+
+function ktDuzenle(id) {
+  const kt = S.kuralTipleri.find(x => x.id === id);
+  if (!kt) return;
+  S.ktDuzenleId = id;
+  S.ktAd = kt.ad;
+  S.ktYontem = kt.yontem;
+  renderPuan();
+}
+
+function ktSil(id) {
+  if (S.kuralTipleri.length <= 1) return;
+  const kullaniliyorMu = S.kartKampanyalari.some(k => k.kural === id);
+  if (kullaniliyorMu && !confirm("Bu koşul tipini kullanan kampanyalar var. Yine de silmek istiyor musun? (o kampanyalar 'Her Çekimde' yöntemine döner)")) return;
+  S.kuralTipleri = S.kuralTipleri.filter(kt => kt.id !== id);
+  kuralTipiKaydet();
+  if (S.ktDuzenleId === id) ktFormTemizle();
+  renderPuan();
+}
+
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-action]");
   if (!t) return;
@@ -1239,6 +1324,12 @@ document.addEventListener("click", (e) => {
   else if (action === "kk-kaydet") { kkKaydet(); }
   else if (action === "kk-duzenle") { kkDuzenle(id); }
   else if (action === "kk-sil") { S.kartKampanyalari = S.kartKampanyalari.filter(k=>k.id!==id); kampanyaKaydet(); renderPuan(); }
+  else if (action === "kt-toggle") { S.ktAcik = !S.ktAcik; renderPuan(); }
+  else if (action === "kt-yontem") { S.ktYontem = t.dataset.yontem; renderPuan(); }
+  else if (action === "kt-vazgec") { ktFormTemizle(); renderPuan(); }
+  else if (action === "kt-kaydet") { ktKaydet(); }
+  else if (action === "kt-duzenle") { ktDuzenle(t.dataset.id); }
+  else if (action === "kt-sil") { ktSil(t.dataset.id); }
   else if (action === "kaydet-panel-ac") { S.kaydetPaneliAcik = true; renderSaveCard(); document.getElementById("alisveris-adi").focus(); }
   else if (action === "kaydet-panel-iptal") { S.kaydetPaneliAcik = false; renderSaveCard(); }
   else if (action === "alisveris-kaydet") { alisverisiKaydet(); }
@@ -1308,7 +1399,7 @@ document.addEventListener("click", (e) => {
   else if (action === "tarama-listeye-ekle") { taramaListeyeEkle(); }
   else if (action === "yedek-toggle") { S.yedekAcik = !S.yedekAcik; render(); }
   else if (action === "yedek-dosya-indir") {
-    const veri = JSON.stringify({ urunler: S.urunler, urunGecmisi: S.urunGecmisi, arsiv: S.arsiv, kartKampanyalari: S.kartKampanyalari }, null, 2);
+    const veri = JSON.stringify({ urunler: S.urunler, urunGecmisi: S.urunGecmisi, arsiv: S.arsiv, kartKampanyalari: S.kartKampanyalari, kuralTipleri: S.kuralTipleri }, null, 2);
     const blob = new Blob([veri], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1337,6 +1428,7 @@ document.addEventListener("input", (e) => {
   if (e.target.id === "kk-esik") S.kkEsik = e.target.value;
   if (e.target.id === "kk-puan") S.kkPuan = e.target.value;
   if (e.target.id === "kk-tavan") S.kkTavan = e.target.value;
+  if (e.target.id === "kt-ad") S.ktAd = e.target.value;
   if (e.target.dataset && e.target.dataset.action === "kimicin") {
     const id = Number(e.target.dataset.id);
     S.urunler = S.urunler.map(u => u.id===id ? {...u, kimIcin: e.target.value} : u);
@@ -1373,6 +1465,7 @@ function verideniceAktar(metinHam) {
     if (Array.isArray(obj.arsiv)) { S.arsiv = obj.arsiv; arsivKaydet(); }
     else if (Array.isArray(obj.gecmisAlisverisler)) { S.arsiv = obj.gecmisAlisverisler; arsivKaydet(); }
     if (Array.isArray(obj.kartKampanyalari)) { S.kartKampanyalari = obj.kartKampanyalari; kampanyaKaydet(); }
+    if (Array.isArray(obj.kuralTipleri) && obj.kuralTipleri.length > 0) { S.kuralTipleri = obj.kuralTipleri; kuralTipiKaydet(); }
     S.yedekAcik = true;
     render();
     document.getElementById("yedek-mesaj").textContent = `${obj.urunler.length} ürün, ${(obj.arsiv||obj.gecmisAlisverisler||[]).length} alışveriş geri yüklendi.`;
