@@ -199,6 +199,7 @@ function kaydet(anahtar, deger) {
 let S = {
   urunler: yukle(K_URUNLER, []),
   urunGecmisi: yukle(K_GECMISI, []),
+  marketAdi: "",
   arsiv: yukle(K_ARSIV, []),
   kartKampanyalari: yukle(K_KAMPANYA, []),
   kuralTipleri: (() => { const y = yukle(K_KURALTIP, null); return (Array.isArray(y) && y.length > 0) ? y : VARSAYILAN_KURAL_TIPLERI; })(),
@@ -253,11 +254,18 @@ function tumUrunKayitlari() {
       const key = u.ad.trim().toLocaleLowerCase("tr");
       const mevcut = kayitlar[key];
       if (!mevcut || new Date(liste.tarih) >= new Date(mevcut.tarih)) {
-        kayitlar[key] = { ad: u.ad, birim: u.birim, fiyat: u.fiyat, miktar: u.miktar, birimFiyati: u.birimFiyati, tarih: liste.tarih };
+        kayitlar[key] = { ad: u.ad, birim: u.birim, fiyat: u.fiyat, miktar: u.miktar, birimFiyati: u.birimFiyati, marketAdi: u.marketAdi || "", tarih: liste.tarih };
       }
     });
   });
   return kayitlar;
+}
+
+function tumMarketAdlari() {
+  const set = new Set();
+  S.urunler.forEach(u => { if (u.marketAdi) set.add(u.marketAdi); });
+  S.arsiv.forEach(a => a.urunler.forEach(u => { if (u.marketAdi) set.add(u.marketAdi); }));
+  return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
 }
 
 function tumZamanlarBaskaGruplari() {
@@ -284,7 +292,7 @@ function fiyatKarsilastirma() {
       if (!u.birimFiyati) return;
       const key = u.ad.trim().toLocaleLowerCase("tr");
       if (!gruplar[key]) gruplar[key] = [];
-      gruplar[key].push({ ad: u.ad, tarih: a.tarih, birimFiyati: u.birimFiyati, birim: u.birim });
+      gruplar[key].push({ ad: u.ad, tarih: a.tarih, marketAdi: u.marketAdi || "", birimFiyati: u.birimFiyati, birim: u.birim });
     });
   });
   const sonuc = [];
@@ -406,6 +414,11 @@ function render() {
             <datalist id="urun-datalist"></datalist>
           </div>
           <div class="datalist-hint">Yazarken önceki alışverişlerinden öneriler çıkar</div>
+
+          <input type="text" id="market-input" list="market-datalist" placeholder="Market/mağaza adı (opsiyonel — örn. Gimat Gross)" autocomplete="off" style="font-size:12.5px; padding:7px 12px; color:var(--muted); margin-top:6px;" value="${esc(S.marketAdi||"")}" />
+          <datalist id="market-datalist">
+            ${tumMarketAdlari().map(m => `<option value="${esc(m)}"></option>`).join("")}
+          </datalist>
 
           <div class="unit-toggle">
             <button class="unit-btn ${S.birim==="gram"?"active":""}" data-action="birim" data-birim="gram">
@@ -631,6 +644,7 @@ function kaydetUrun() {
   const gecerli = fiyat > 0 && miktar > 0 && S.kacTane > 0;
   if (!gecerli) return;
   const isim = ad.trim() || "Ürün";
+  const marketAdiDeger = (document.getElementById("market-input")?.value || "").trim();
   gecmiseEkle(isim);
   const birimFiyati = birimFiyatiHesapla(fiyat, miktar, S.birim);
   const satirToplami = fiyat * S.kacTane;
@@ -639,9 +653,10 @@ function kaydetUrun() {
     S.urunler = S.urunler.map(u => u.id === S.editingId ? {
       ...u, ad: isim, birim: S.birim, fiyat, miktar, kacTane: S.kacTane, birimFiyati, satirToplami,
       baskasiAdet: Math.min(u.baskasiAdet || 0, S.kacTane),
+      marketAdi: marketAdiDeger,
     } : u);
   } else {
-    S.urunler = [{ id: Date.now(), ad: isim, birim: S.birim, fiyat, miktar, kacTane: S.kacTane, birimFiyati, satirToplami, baskasiAdet: 0, kimIcin: "" }, ...S.urunler];
+    S.urunler = [{ id: Date.now(), ad: isim, birim: S.birim, fiyat, miktar, kacTane: S.kacTane, birimFiyati, satirToplami, baskasiAdet: 0, kimIcin: "", marketAdi: marketAdiDeger }, ...S.urunler];
   }
   urunKaydet();
   formuTemizle();
@@ -654,6 +669,7 @@ function formuTemizle() {
   S.kacTane = 1;
   S.girisModu = "toplam";
   S.kgFiyati = "";
+  S.marketAdi = "";
 }
 
 function duzenle(id) {
@@ -664,6 +680,7 @@ function duzenle(id) {
   S.kacTane = u.kacTane;
   S.girisModu = "toplam";
   S.kgFiyati = "";
+  S.marketAdi = u.marketAdi || "";
   render();
   document.getElementById("ad-input").value = u.ad === "Ürün" ? "" : u.ad;
   document.getElementById("fiyat-input").value = String(u.fiyat).replace(".", ",");
@@ -707,7 +724,7 @@ function renderList() {
           ${u.kacTane>1?`<span class="item-tag tag-kacTane">×${u.kacTane}</span>`:""}
           ${baskasi?`<span class="item-tag tag-baskasi">${u.kacTane>1?`${u.baskasiAdet}/${u.kacTane} `:""}${u.kimIcin?esc(u.kimIcin)+" için":"başkası için"}</span>`:""}
         </div>
-        <div class="item-sub">${u.birim==="gram"?`${miktarFmt(u.miktar)} g · ₺${paraFmt(u.birimFiyati)}/kg`:`${miktarFmt(u.miktar)} adet/koli · ₺${paraFmt(u.birimFiyati)}/adet`}</div>
+        <div class="item-sub">${u.birim==="gram"?`${miktarFmt(u.miktar)} g · ₺${paraFmt(u.birimFiyati)}/kg`:`${miktarFmt(u.miktar)} adet/koli · ₺${paraFmt(u.birimFiyati)}/adet`}${u.marketAdi?` · ${esc(u.marketAdi)}`:""}</div>
         ${baskasi?`<input class="kim-input" data-action="kimicin" data-id="${u.id}" placeholder="kimin için? (isim yaz)" value="${esc(u.kimIcin||"")}" onclick="event.stopPropagation()" />`:""}
       </div>
       <span class="item-price ${baskasi?"baskasi":""}">₺${paraFmt(u.satirToplami)}</span>
@@ -831,7 +848,7 @@ function renderGecmis() {
             <div class="compare-row">
               <div>
                 <div class="compare-name">${esc(k.ad)}</div>
-                <div class="compare-sub">₺${paraFmt(k.onceki.birimFiyati)} → ₺${paraFmt(k.sonraki.birimFiyati)} /${k.birim==="gram"?"kg":"adet"}</div>
+                <div class="compare-sub">₺${paraFmt(k.onceki.birimFiyati)}${k.onceki.marketAdi?` (${esc(k.onceki.marketAdi)})`:""} → ₺${paraFmt(k.sonraki.birimFiyati)}${k.sonraki.marketAdi?` (${esc(k.sonraki.marketAdi)})`:""} /${k.birim==="gram"?"kg":"adet"}</div>
               </div>
               <div class="compare-delta" style="color:${renk}">${ok} ${artti?"+":""}${paraFmt(k.yuzde)}%</div>
             </div>`;
@@ -1169,6 +1186,7 @@ function taramaListeyeEkle() {
     satirToplami: s.fiyat * (s.kacTane || 1),
     baskasiAdet: 0,
     kimIcin: "",
+    marketAdi: "",
   }));
   S.urunler = [...yeniler, ...S.urunler];
   urunKaydet();
@@ -1420,6 +1438,7 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("input", (e) => {
   if (e.target.id === "arama-input") { S.arama = e.target.value; renderList(); }
+  if (e.target.id === "market-input") { S.marketAdi = e.target.value; }
   if (e.target.id === "kk-hesap-tutari") {
     S.kkHesapTutari = e.target.value;
     document.getElementById("kk-simulasyon-sonuc").innerHTML = renderSimulasyonIcerik(kkSimulasyon());
