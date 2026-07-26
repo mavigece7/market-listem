@@ -429,19 +429,21 @@ function render() {
             </button>
           </div>
 
-          ${S.birim === "gram" ? `
           <div style="display:flex; gap:8px; margin-top:8px;">
             <button data-action="giris-modu" data-modu="toplam" style="flex:1; border-radius:8px; padding:6px; font-size:10.5px; font-weight:700; cursor:pointer; background:${S.girisModu==="toplam"?"rgba(31,122,92,0.1)":"var(--bg)"}; color:${S.girisModu==="toplam"?"var(--green)":"var(--muted)"}; border:1px solid ${S.girisModu==="toplam"?"rgba(31,122,92,0.35)":"transparent"};">Toplam fiyatı biliyorum</button>
-            <button data-action="giris-modu" data-modu="kgFiyati" style="flex:1; border-radius:8px; padding:6px; font-size:10.5px; font-weight:700; cursor:pointer; background:${S.girisModu==="kgFiyati"?"rgba(31,122,92,0.1)":"var(--bg)"}; color:${S.girisModu==="kgFiyati"?"var(--green)":"var(--muted)"}; border:1px solid ${S.girisModu==="kgFiyati"?"rgba(31,122,92,0.35)":"transparent"};">Kg fiyatını biliyorum</button>
-          </div>` : ""}
+            <button data-action="giris-modu" data-modu="birimFiyati" style="flex:1; border-radius:8px; padding:6px; font-size:10.5px; font-weight:700; cursor:pointer; background:${S.girisModu==="birimFiyati"?"rgba(31,122,92,0.1)":"var(--bg)"}; color:${S.girisModu==="birimFiyati"?"var(--green)":"var(--muted)"}; border:1px solid ${S.girisModu==="birimFiyati"?"rgba(31,122,92,0.35)":"transparent"};">${S.birim==="gram"?"Kg fiyatını biliyorum":"Adet fiyatını biliyorum"}</button>
+          </div>
 
           <div class="row2">
             <div class="field" id="fiyat-alani">
-              ${S.birim==="gram" && S.girisModu==="kgFiyati" ? `
+              ${S.birim==="gram" && S.girisModu==="birimFiyati" ? `
                 <label>KİLOGRAM FİYATI (₺/kg)</label>
                 <input type="text" inputmode="decimal" id="kg-fiyat-input" placeholder="0,00" value="${esc(S.kgFiyati||"")}" />
+              ` : S.birim==="adet" && S.girisModu==="toplam" ? `
+                <label>TOPLAM FİYAT (₺)</label>
+                <input type="text" inputmode="decimal" id="fiyat-input" placeholder="hepsi için ödediğin toplam" />
               ` : `
-                <label>FİYAT (₺)</label>
+                <label>${S.birim==="adet"?"ADET FİYATI (₺)":"FİYAT (₺)"}</label>
                 <input type="text" inputmode="decimal" id="fiyat-input" placeholder="0,00" />
               `}
             </div>
@@ -451,7 +453,9 @@ function render() {
             </div>
           </div>
 
-          ${S.birim==="gram" && S.girisModu==="kgFiyati" ? `
+          ${S.birim==="gram" && S.girisModu==="birimFiyati" ? `
+          <div class="preview" id="kg-hesap-onizleme" style="margin-top:0; margin-bottom:10px;"></div>` : ""}
+          ${S.birim==="adet" && S.girisModu==="toplam" ? `
           <div class="preview" id="kg-hesap-onizleme" style="margin-top:0; margin-bottom:10px;"></div>` : ""}
 
           <div class="stepper-row">
@@ -578,19 +582,23 @@ function bindForm() {
 function formDegerleri() {
   const ad = document.getElementById("ad-input")?.value || "";
   const miktar = parseFloat((document.getElementById("miktar-input")?.value || "").replace(",", "."));
-  const kgModuAktif = S.birim === "gram" && S.girisModu === "kgFiyati";
+  const kgModuAktif = S.birim === "gram" && S.girisModu === "birimFiyati";
+  const adetToplamModuAktif = S.birim === "adet" && S.girisModu === "toplam";
   let fiyat;
   if (kgModuAktif) {
     const kgFiyatiNum = parseFloat((document.getElementById("kg-fiyat-input")?.value || "").replace(",", "."));
     fiyat = (kgFiyatiNum > 0 && miktar > 0) ? (kgFiyatiNum * miktar) / 1000 : NaN;
+  } else if (adetToplamModuAktif) {
+    const girilenFiyatNum = parseFloat((document.getElementById("fiyat-input")?.value || "").replace(",", "."));
+    fiyat = (girilenFiyatNum > 0 && S.kacTane > 0) ? girilenFiyatNum / S.kacTane : NaN;
   } else {
     fiyat = parseFloat((document.getElementById("fiyat-input")?.value || "").replace(",", "."));
   }
-  return { ad, fiyat, miktar, kgModuAktif };
+  return { ad, fiyat, miktar, kgModuAktif, adetToplamModuAktif };
 }
 
 function renderPreview() {
-  const { fiyat, miktar, kgModuAktif } = formDegerleri();
+  const { fiyat, miktar, kgModuAktif, adetToplamModuAktif } = formDegerleri();
   const gecerli = fiyat > 0 && miktar > 0 && S.kacTane > 0;
   const bf = birimFiyatiHesapla(fiyat, miktar, S.birim);
   const satirToplami = gecerli ? fiyat * S.kacTane : null;
@@ -608,11 +616,15 @@ function renderPreview() {
   `;
   const kgOnizleme = document.getElementById("kg-hesap-onizleme");
   if (kgOnizleme) {
-    kgOnizleme.innerHTML = `
+    kgOnizleme.innerHTML = kgModuAktif ? `
       <div class="preview-row">
         <span style="color:var(--green);">Hesaplanan toplam fiyat</span>
         <span style="color:${fiyat>0?"var(--green)":"var(--muted)"}">${fiyat>0?`₺${paraFmt(fiyat)}`:"—"}</span>
-      </div>`;
+      </div>` : adetToplamModuAktif ? `
+      <div class="preview-row">
+        <span style="color:var(--green);">Hesaplanan adet fiyatı</span>
+        <span style="color:${fiyat>0?"var(--green)":"var(--muted)"}">${fiyat>0?`₺${paraFmt(fiyat)} / adet`:"—"}</span>
+      </div>` : "";
   }
   document.getElementById("submit-btn").disabled = !gecerli;
   const btn = document.getElementById("submit-btn");
@@ -1302,14 +1314,12 @@ document.addEventListener("click", (e) => {
   else if (action === "temizle") { if (confirm("Tüm liste silinsin mi?")) { S.urunler = []; urunKaydet(); render(); } }
   else if (action === "birim") {
     const adDeger = document.getElementById("ad-input").value;
-    const fiyatEl = document.getElementById("fiyat-input") || document.getElementById("kg-fiyat-input");
-    const fiyatDeger = fiyatEl ? fiyatEl.value : "";
     const miktarDeger = document.getElementById("miktar-input").value;
     S.birim = t.dataset.birim;
-    if (S.birim === "adet") { S.girisModu = "toplam"; S.kgFiyati = ""; }
+    S.girisModu = "toplam";
+    S.kgFiyati = "";
     render();
     document.getElementById("ad-input").value = adDeger;
-    if (document.getElementById("fiyat-input")) document.getElementById("fiyat-input").value = S.birim === "adet" ? fiyatDeger : "";
     document.getElementById("miktar-input").value = miktarDeger;
     renderPreview();
   }
