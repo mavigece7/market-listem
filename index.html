@@ -873,7 +873,8 @@ function renderGecmis() {
   if (S.arsiv.length === 0) {
     html += `<div class="empty-state" style="margin:0 0 16px;">📜<br/>Henüz kaydedilmiş alışveriş yok.<br/>Liste sekmesinde "Alışverişi Bitir ve Kaydet" ile başla.</div>`;
   } else {
-    html += `<div class="archive-list">` + S.arsiv.map(a => {
+    const arsivSirali = [...S.arsiv].sort((a,b) => new Date(b.tarih) - new Date(a.tarih));
+    html += `<div class="archive-list">` + arsivSirali.map(a => {
       const acik = S.acikArsiv === a.id;
       const t = a.urunler.reduce((s,u)=>s+u.satirToplami,0);
       return `
