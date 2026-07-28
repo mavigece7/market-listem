@@ -209,6 +209,8 @@ let S = {
   ktDuzenleId: null,
   kkDuzenleId: null,
   kkHesapTutari: "",
+  kkKategori: "Tümü",
+  aktifKategori: "Market",
   editingId: null,
   arama: "",
   mod: "liste",
@@ -287,6 +289,12 @@ function tumMarketAdlari() {
   return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
 }
 
+function tumKategoriler() {
+  const set = new Set(["Market", "Restoran", "Akaryakıt"]);
+  S.arsiv.forEach(a => { if (a.kategori) set.add(a.kategori); });
+  return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
+}
+
 function tumZamanlarBaskaGruplari() {
   const gruplar = {};
   S.arsiv.forEach(a => {
@@ -336,15 +344,17 @@ function ayIslemleri() {
   const islemler = [];
   S.arsiv.forEach(a => {
     const t = new Date(a.tarih);
-    if (t >= ayBasi) islemler.push({ tarih: t, tutar: a.urunler.reduce((s,u)=>s+u.satirToplami,0) });
+    if (t >= ayBasi) islemler.push({ tarih: t, tutar: a.urunler.reduce((s,u)=>s+u.satirToplami,0), kategori: a.kategori || "Market" });
   });
   if (S.urunler.length > 0) {
-    islemler.push({ tarih: simdi, tutar: S.urunler.reduce((s,u)=>s+u.satirToplami,0) });
+    islemler.push({ tarih: simdi, tutar: S.urunler.reduce((s,u)=>s+u.satirToplami,0), kategori: S.aktifKategori || "Market" });
   }
   return islemler.sort((a,b) => a.tarih - b.tarih);
 }
 
-function hesaplaKampanyaPuani(k, islemler) {
+function hesaplaKampanyaPuani(k, islemlerHam) {
+  const kKategori = k.kategori || "Tümü";
+  const islemler = kKategori === "Tümü" ? islemlerHam : islemlerHam.filter(isl => isl.kategori === kKategori);
   if (islemler.length === 0) return { kazanilan: 0, tavanaTakildi: false };
   const yontem = kuralTipiBul(k.kural).yontem;
   let hamPuan = 0;
@@ -816,7 +826,14 @@ function renderSaveCard() {
     el.innerHTML = `
       <div class="save-panel">
         <label>Bu alışverişe bir isim ver</label>
-        <input type="text" id="alisveris-adi" placeholder="${bugununAdi()}" />
+        <input type="text" id="alisveris-adi" placeholder="${bugununAdi()}" value="${esc(S.alisverisAdiGecici||"")}" />
+        <label style="margin-top:8px; display:block;">Kategori</label>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
+          ${tumKategoriler().map(k => `
+            <button data-action="aktif-kategori" data-kategori="${esc(k)}" style="padding:5px 10px; border-radius:999px; border:none; cursor:pointer; font-size:10.5px; font-weight:700; background:${(S.aktifKategori||"Market")===k?'var(--green)':'var(--bg)'}; color:${(S.aktifKategori||"Market")===k?'#fff':'var(--ink)'};">${esc(k)}</button>
+          `).join("")}
+        </div>
+        <input type="text" id="aktif-kategori-input" placeholder="ya da yeni bir kategori yaz" value="${(S.aktifKategori && !tumKategoriler().includes(S.aktifKategori)) ? esc(S.aktifKategori) : ""}" style="margin-top:6px; font-size:11.5px;" />
         <div class="actions">
           <button class="btn-cancel" data-action="kaydet-panel-iptal">Vazgeç</button>
           <button class="btn-confirm" data-action="alisveris-kaydet">Kaydet ve Yeni Listeye Başla</button>
@@ -829,13 +846,20 @@ function alisverisiKaydet() {
   if (S.urunler.length === 0) return;
   const isimInput = document.getElementById("alisveris-adi");
   const isim = (isimInput?.value || "").trim() || bugununAdi();
-  S.arsiv = [{ id: Date.now(), isim, tarih: new Date().toISOString(), urunler: S.urunler }, ...S.arsiv];
+  S.arsiv = [{ id: Date.now(), isim, tarih: new Date().toISOString(), urunler: S.urunler, kategori: S.aktifKategori || "Market" }, ...S.arsiv];
   arsivKaydet();
   S.urunler = [];
+  S.aktifKategori = "Market";
   urunKaydet();
   S.kaydetPaneliAcik = false;
   formuTemizle();
   render();
+}
+
+function arsivKategoriGuncelle(arsivId, yeniKategori) {
+  S.arsiv = S.arsiv.map(a => a.id === arsivId ? { ...a, kategori: yeniKategori } : a);
+  arsivKaydet();
+  renderGecmis();
 }
 
 /* ============ GEÇMİŞ SEKMESİ ============ */
@@ -903,7 +927,7 @@ function renderGecmis() {
             ${S.arsivIsimDuzenle === a.id
               ? `<input class="archive-name-input" id="arsiv-isim-input-${a.id}" value="${esc(a.isim)}" onclick="event.stopPropagation()" />`
               : `<div class="archive-name">${esc(a.isim)}</div>`}
-            <div class="archive-count">${a.urunler.length} kalem</div>
+            <div class="archive-count">${a.urunler.length} kalem${a.kategori ? ` · ${esc(a.kategori)}` : ""}</div>
           </button>
           <div style="display:flex; align-items:center; gap:8px;">
             ${acik && S.arsivIsimDuzenle !== a.id ? `<button data-action="arsiv-isim-duzenle" data-id="${a.id}" style="background:none;border:none;cursor:pointer;">✏️</button>` : ""}
@@ -942,6 +966,7 @@ function renderPuan() {
               <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
                 <span class="compare-name">${esc(k.banka)}</span>
                 <span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(124,92,252,0.1); color:var(--purple); font-weight:700;">${esc(k.kanal)}</span>
+                <span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(31,122,92,0.1); color:var(--green); font-weight:700;">${esc(k.kategori||"Tümü")}</span>
                 ${idx===0 && k.kazanilan>0 ? `<span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(31,122,92,0.1); color:var(--green); font-weight:700;">en iyi</span>` : ""}
               </div>
               <div class="compare-sub">${esc(kuralTipiBul(k.kural).ad)} · Her ₺${paraFmt(k.esik)}'ye ₺${paraFmt(k.puan)} ${k.tavan?`· tavan ₺${paraFmt(k.tavan)}`:""}${k.tavanaTakildi?" · tavana takıldı":""}</div>
@@ -975,6 +1000,14 @@ function renderPuan() {
           <button data-action="kk-kanal" data-kanal="${k}" style="flex:1; padding:7px; border:none; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; background:${(S.kkKanal||"NFC")===k?'var(--purple)':'var(--bg)'}; color:${(S.kkKanal||"NFC")===k?'#fff':'var(--ink)'};">${k}</button>
         `).join("")}
       </div>
+
+      <label style="font-size:9px; color:var(--muted); font-weight:600;">KATEGORİ (hangi tür alışverişte geçerli)</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 8px;">
+        ${["Tümü", ...tumKategoriler()].map(k => `
+          <button data-action="kk-kategori" data-kategori="${esc(k)}" style="padding:5px 10px; border-radius:999px; border:none; cursor:pointer; font-size:10.5px; font-weight:700; background:${(S.kkKategori||"Tümü")===k?'var(--purple)':'var(--bg)'}; color:${(S.kkKategori||"Tümü")===k?'#fff':'var(--ink)'};">${esc(k)}</button>
+        `).join("")}
+      </div>
+      <input type="text" id="kk-kategori-input" placeholder="ya da yeni bir kategori yaz" value="${(S.kkKategori && S.kkKategori!=="Tümü" && !tumKategoriler().includes(S.kkKategori)) ? esc(S.kkKategori) : ""}" style="margin-bottom:8px; font-size:11px;" />
       <div style="display:flex; align-items:center; justify-content:space-between; padding-left:2px;">
         <label style="font-size:9px; color:var(--muted); font-weight:600;">KOŞUL TİPİ</label>
         <button data-action="kt-toggle" style="background:none; border:none; cursor:pointer; font-size:9.5px; color:var(--green); font-weight:700;">${S.ktAcik ? "gizle" : "yönet"}</button>
@@ -1047,6 +1080,7 @@ function renderPuan() {
           <div style="font-size:12px; font-weight:700; display:flex; align-items:center; gap:5px;">
             ${esc(k.banka)}
             <span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(124,92,252,0.1); color:var(--purple); font-weight:700;">${esc(k.kanal)}</span>
+            <span style="font-size:9px; padding:2px 6px; border-radius:999px; background:rgba(31,122,92,0.1); color:var(--green); font-weight:700;">${esc(k.kategori||"Tümü")}</span>
           </div>
           <div style="font-size:10px; color:var(--muted);">₺${paraFmt(k.esik)} → ₺${paraFmt(k.puan)} ${k.tavan?`(tavan ₺${paraFmt(k.tavan)})`:"(tavansız)"} · ${esc(kuralTipiBul(k.kural).ad)}</div>
         </div>
@@ -1077,6 +1111,12 @@ function renderSimulasyonIcerik(simulasyon) {
 function renderArsivDetay(a) {
   return `
     <div class="archive-detail">
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-bottom:8px; margin-bottom:4px; border-bottom:1px solid #F3F4F1;">
+        <span style="font-size:9px; color:var(--muted); font-weight:600;">KATEGORİ:</span>
+        ${tumKategoriler().map(k => `
+          <button data-action="arsiv-kategori" data-arsiv="${a.id}" data-kategori="${esc(k)}" style="padding:3px 8px; border-radius:999px; border:none; cursor:pointer; font-size:9.5px; font-weight:700; background:${(a.kategori||"Market")===k?'var(--green)':'var(--bg)'}; color:${(a.kategori||"Market")===k?'#fff':'var(--ink)'};">${esc(k)}</button>
+        `).join("")}
+      </div>
       ${a.urunler.map(u => {
         const dzn = S.arsivDraft && S.arsivDraft.arsivId === a.id && S.arsivDraft.urunId === u.id;
         if (dzn) {
@@ -1256,7 +1296,7 @@ function renderSticky() {
 
 /* ============ OLAY YÖNETİMİ (event delegation) ============ */
 function kkFormTemizle() {
-  S.kkBanka = ""; S.kkKanal = "NFC"; S.kkEsik = ""; S.kkPuan = ""; S.kkTavan = ""; S.kkDuzenleId = null; S.kkKural = "her_cekim";
+  S.kkBanka = ""; S.kkKanal = "NFC"; S.kkKategori = "Tümü"; S.kkEsik = ""; S.kkPuan = ""; S.kkTavan = ""; S.kkDuzenleId = null; S.kkKural = "her_cekim";
 }
 
 function kkKaydet() {
@@ -1265,7 +1305,7 @@ function kkKaydet() {
   const puan = parseFloat((document.getElementById("kk-puan").value || "").replace(",", "."));
   const tavanRaw = parseFloat((document.getElementById("kk-tavan").value || "").replace(",", "."));
   if (!banka || !(esik > 0) || !(puan > 0)) return;
-  const kayit = { id: S.kkDuzenleId || Date.now(), banka, kanal: S.kkKanal || "NFC", esik, puan, tavan: tavanRaw > 0 ? tavanRaw : null, kural: S.kkKural || "her_cekim" };
+  const kayit = { id: S.kkDuzenleId || Date.now(), banka, kanal: S.kkKanal || "NFC", kategori: S.kkKategori || "Tümü", esik, puan, tavan: tavanRaw > 0 ? tavanRaw : null, kural: S.kkKural || "her_cekim" };
   if (S.kkDuzenleId) {
     S.kartKampanyalari = S.kartKampanyalari.map(k => k.id === S.kkDuzenleId ? kayit : k);
   } else {
@@ -1280,7 +1320,7 @@ function kkDuzenle(id) {
   const k = S.kartKampanyalari.find(x => x.id === id);
   if (!k) return;
   S.kkDuzenleId = id;
-  S.kkBanka = k.banka; S.kkKanal = k.kanal; S.kkKural = k.kural || "her_cekim";
+  S.kkBanka = k.banka; S.kkKanal = k.kanal; S.kkKategori = k.kategori || "Tümü"; S.kkKural = k.kural || "her_cekim";
   S.kkEsik = String(k.esik).replace(".", ","); S.kkPuan = String(k.puan).replace(".", ",");
   S.kkTavan = k.tavan ? String(k.tavan).replace(".", ",") : "";
   renderPuan();
@@ -1367,6 +1407,7 @@ document.addEventListener("click", (e) => {
   else if (action === "baska-toggle") { S.baskaAcik = !S.baskaAcik; renderBaska(); }
   else if (action === "arama-temizle") { S.arama=""; render(); }
   else if (action === "kk-kanal") { S.kkKanal = t.dataset.kanal; renderPuan(); }
+  else if (action === "kk-kategori") { S.kkKategori = t.dataset.kategori; renderPuan(); }
   else if (action === "kk-kural") { S.kkKural = t.dataset.kural; renderPuan(); }
   else if (action === "kk-vazgec") { kkFormTemizle(); renderPuan(); }
   else if (action === "kk-kaydet") { kkKaydet(); }
@@ -1379,9 +1420,15 @@ document.addEventListener("click", (e) => {
   else if (action === "kt-duzenle") { ktDuzenle(t.dataset.id); }
   else if (action === "kt-sil") { ktSil(t.dataset.id); }
   else if (action === "kaydet-panel-ac") { S.kaydetPaneliAcik = true; renderSaveCard(); document.getElementById("alisveris-adi").focus(); }
+  else if (action === "aktif-kategori") {
+    S.alisverisAdiGecici = document.getElementById("alisveris-adi")?.value || "";
+    S.aktifKategori = t.dataset.kategori;
+    renderSaveCard();
+  }
   else if (action === "kaydet-panel-iptal") { S.kaydetPaneliAcik = false; renderSaveCard(); }
   else if (action === "alisveris-kaydet") { alisverisiKaydet(); }
   else if (action === "arsiv-toggle") { S.acikArsiv = S.acikArsiv===id?null:id; S.arsivIsimDuzenle=null; S.arsivDraft=null; renderGecmis(); }
+  else if (action === "arsiv-kategori") { arsivKategoriGuncelle(Number(t.dataset.arsiv), t.dataset.kategori); }
   else if (action === "arsiv-sil") { if(confirm("Bu alışveriş tamamen silinsin mi?")){ S.arsiv = S.arsiv.filter(a=>a.id!==id); arsivKaydet(); renderGecmis(); } }
   else if (action === "arsiv-isim-duzenle") { S.arsivIsimDuzenle = id; renderGecmis(); document.getElementById(`arsiv-isim-input-${id}`)?.focus(); }
   else if (action === "arsiv-isim-kaydet") {
@@ -1477,6 +1524,7 @@ document.addEventListener("input", (e) => {
   if (e.target.id === "kk-esik") S.kkEsik = e.target.value;
   if (e.target.id === "kk-puan") S.kkPuan = e.target.value;
   if (e.target.id === "kk-tavan") S.kkTavan = e.target.value;
+  if (e.target.id === "kk-kategori-input") S.kkKategori = e.target.value;
   if (e.target.id === "kt-ad") S.ktAd = e.target.value;
   if (e.target.dataset && e.target.dataset.action === "kimicin") {
     const id = Number(e.target.dataset.id);
@@ -1489,6 +1537,8 @@ document.addEventListener("input", (e) => {
     S.taramaSonuclari = S.taramaSonuclari.map(s => s.gid===gid ? {...s, [alan]: deger} : s);
   }
   if (e.target.id === "fis-metin") { S.fisMetniGecici = e.target.value; }
+  if (e.target.id === "alisveris-adi") { S.alisverisAdiGecici = e.target.value; }
+  if (e.target.id === "aktif-kategori-input") { S.aktifKategori = e.target.value; }
 });
 
 document.addEventListener("change", (e) => {
