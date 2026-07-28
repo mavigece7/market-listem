@@ -236,6 +236,25 @@ function kuralTipiBul(id) { return S.kuralTipleri.find(kt => kt.id === id) || { 
 
 /* ============ YARDIMCI ============ */
 const paraFmt = (n) => (n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const TR_AYLAR = {
+  "ocak": 0, "şubat": 1, "subat": 1, "mart": 2, "nisan": 3, "mayıs": 4, "mayis": 4,
+  "haziran": 5, "temmuz": 6, "ağustos": 7, "agustos": 7, "eylül": 8, "eylul": 8,
+  "ekim": 9, "kasım": 10, "kasim": 10, "aralık": 11, "aralik": 11,
+};
+function isimdenTarihCikar(isim) {
+  if (!isim) return null;
+  const m = isim.match(/(\d{1,2})\s+([a-zçğıöşü]+)\s+(\d{4})/i);
+  if (!m) return null;
+  const gun = parseInt(m[1], 10);
+  const ay = TR_AYLAR[m[2].toLocaleLowerCase("tr")];
+  const yil = parseInt(m[3], 10);
+  if (ay === undefined || !gun || !yil) return null;
+  return new Date(yil, ay, gun);
+}
+function arsivSiraTarihi(a) {
+  return isimdenTarihCikar(a.isim) || new Date(a.tarih);
+}
 const miktarFmt = (n) => (n || 0).toLocaleString("tr-TR", { maximumFractionDigits: 0 });
 const esc = (s) => (s || "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const bugununAdi = () => new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
@@ -873,7 +892,7 @@ function renderGecmis() {
   if (S.arsiv.length === 0) {
     html += `<div class="empty-state" style="margin:0 0 16px;">📜<br/>Henüz kaydedilmiş alışveriş yok.<br/>Liste sekmesinde "Alışverişi Bitir ve Kaydet" ile başla.</div>`;
   } else {
-    const arsivSirali = [...S.arsiv].sort((a,b) => new Date(b.tarih) - new Date(a.tarih));
+    const arsivSirali = [...S.arsiv].sort((a,b) => arsivSiraTarihi(b) - arsivSiraTarihi(a));
     html += `<div class="archive-list">` + arsivSirali.map(a => {
       const acik = S.acikArsiv === a.id;
       const t = a.urunler.reduce((s,u)=>s+u.satirToplami,0);
