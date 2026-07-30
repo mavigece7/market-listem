@@ -295,22 +295,6 @@ function tumKategoriler() {
   return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
 }
 
-function tumZamanlarBaskaGruplari() {
-  const gruplar = {};
-  S.arsiv.forEach(a => {
-    a.urunler.forEach(u => {
-      if ((u.baskasiAdet || 0) > 0) {
-        const kisi = (u.kimIcin || "").trim() || "İsim belirtilmedi";
-        if (!gruplar[kisi]) gruplar[kisi] = { toplam: 0, adet: 0, kalem: 0 };
-        gruplar[kisi].toplam += u.fiyat * u.baskasiAdet;
-        gruplar[kisi].adet += u.baskasiAdet;
-        gruplar[kisi].kalem += 1;
-      }
-    });
-  });
-  return Object.entries(gruplar).map(([kisi, v]) => ({ kisi, ...v })).sort((a, b) => b.toplam - a.toplam);
-}
-
 function fiyatKarsilastirma() {
   const gruplar = {};
   const sirali = [...S.arsiv].sort((a, b) => new Date(a.tarih) - new Date(b.tarih));
@@ -866,29 +850,7 @@ function arsivKategoriGuncelle(arsivId, yeniKategori) {
 function renderGecmis() {
   const el = document.getElementById("gecmis-panel");
   const karsilastirma = fiyatKarsilastirma();
-  const kisiToplamlari = tumZamanlarBaskaGruplari();
   let html = "";
-
-  if (kisiToplamlari.length > 0) {
-    html += `
-      <div class="compare-card">
-        <p class="compare-title purple">Başkaları İçin (Tüm Zamanlar)</p>
-        <div class="compare-list">
-          ${kisiToplamlari.map(g => `
-            <div class="person-row">
-              <div class="person-left">
-                <div class="person-dot">👤</div>
-                <div>
-                  <div class="person-name">${esc(g.kisi)}</div>
-                  <div class="person-sub">${g.kalem} kalem · ${g.adet} adet</div>
-                </div>
-              </div>
-              <span class="person-total">₺${paraFmt(g.toplam)}</span>
-            </div>
-          `).join("")}
-        </div>
-      </div>`;
-  }
 
   if (karsilastirma.length > 0) {
     html += `
@@ -1109,6 +1071,16 @@ function renderSimulasyonIcerik(simulasyon) {
 }
 
 function renderArsivDetay(a) {
+  const buAlisverisBaska = {};
+  a.urunler.forEach(u => {
+    if ((u.baskasiAdet || 0) > 0) {
+      const kisi = (u.kimIcin || "").trim() || "İsim belirtilmedi";
+      if (!buAlisverisBaska[kisi]) buAlisverisBaska[kisi] = 0;
+      buAlisverisBaska[kisi] += u.fiyat * u.baskasiAdet;
+    }
+  });
+  const baskaGirdileri = Object.entries(buAlisverisBaska);
+
   return `
     <div class="archive-detail">
       <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-bottom:8px; margin-bottom:4px; border-bottom:1px solid #F3F4F1;">
@@ -1117,6 +1089,16 @@ function renderArsivDetay(a) {
           <button data-action="arsiv-kategori" data-arsiv="${a.id}" data-kategori="${esc(k)}" style="padding:3px 8px; border-radius:999px; border:none; cursor:pointer; font-size:9.5px; font-weight:700; background:${(a.kategori||"Market")===k?'var(--green)':'var(--bg)'}; color:${(a.kategori||"Market")===k?'#fff':'var(--ink)'};">${esc(k)}</button>
         `).join("")}
       </div>
+      ${baskaGirdileri.length > 0 ? `
+      <div style="border-radius:8px; padding:8px; margin-bottom:8px; background:rgba(124,92,252,0.04);">
+        <div style="font-size:9px; font-weight:700; color:var(--purple); margin-bottom:4px;">BU ALIŞVERİŞTE BAŞKASI İÇİN</div>
+        ${baskaGirdileri.map(([kisi, tutar]) => `
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:10.5px;">${esc(kisi)}</span>
+            <span style="font-size:10.5px; font-weight:700; color:var(--purple); font-family:'Courier New',monospace;">₺${paraFmt(tutar)}</span>
+          </div>
+        `).join("")}
+      </div>` : ""}
       ${a.urunler.map(u => {
         const dzn = S.arsivDraft && S.arsivDraft.arsivId === a.id && S.arsivDraft.urunId === u.id;
         if (dzn) {
