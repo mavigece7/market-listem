@@ -1469,6 +1469,14 @@ document.addEventListener("click", (e) => {
     S.icerikSiralamaAZ = { ...S.icerikSiralamaAZ, [arsivId]: !S.icerikSiralamaAZ[arsivId] };
     renderGecmis();
   }
+  else if (action === "karsilastirma-toggle") {
+    S.acikKarsilastirma = S.acikKarsilastirma === t.dataset.ad ? null : t.dataset.ad;
+    renderGecmis();
+  }
+  else if (action === "arsiv-sirala") {
+    S.arsivSiralamaTuru = t.dataset.tur;
+    renderGecmis();
+  }
   else if (action === "arsiv-sil") { if(confirm("Bu alışveriş tamamen silinsin mi?")){ S.arsiv = S.arsiv.filter(a=>a.id!==id); arsivKaydet(); renderGecmis(); } }
   else if (action === "arsiv-isim-duzenle") { S.arsivIsimDuzenle = id; renderGecmis(); document.getElementById(`arsiv-isim-input-${id}`)?.focus(); }
   else if (action === "arsiv-isim-kaydet") {
