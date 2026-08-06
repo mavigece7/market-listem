@@ -306,7 +306,7 @@ function fiyatKarsilastirma() {
       if (!u.birimFiyati) return;
       const key = u.ad.trim().toLocaleLowerCase("tr");
       if (!gruplar[key]) gruplar[key] = [];
-      gruplar[key].push({ ad: u.ad, tarih: a.tarih, alisverisIsim: a.isim, marketAdi: u.marketAdi || "", birimFiyati: u.birimFiyati, birim: u.birim });
+      gruplar[key].push({ ad: u.ad, tarih: a.tarih, alisverisIsim: a.isim, marketAdi: u.marketAdi || "", birimFiyati: u.birimFiyati, birim: u.birim, arsivId: a.id, urunId: u.id });
     });
   });
   const sonuc = [];
@@ -843,6 +843,24 @@ function alisverisiKaydet() {
   render();
 }
 
+function kayittanDuzenlemeyeGit(arsivId, urunId) {
+  const a = S.arsiv.find(x => x.id === arsivId);
+  const u = a && a.urunler.find(x => x.id === urunId);
+  if (!a || !u) return;
+  S.acikKarsilastirma = null;
+  S.acikArsiv = a.id;
+  S.arsivDraft = {
+    arsivId, urunId,
+    ad: u.ad === "Ürün" ? "" : u.ad, birim: u.birim,
+    fiyat: String(u.fiyat).replace(".", ","), miktar: String(u.miktar).replace(".", ","),
+    kacTane: u.kacTane, baskasiAdet: u.baskasiAdet || 0, kimIcin: u.kimIcin || "",
+  };
+  renderGecmis();
+  setTimeout(() => {
+    document.getElementById(`arsiv-kayit-${a.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 80);
+}
+
 function arsivKategoriGuncelle(arsivId, yeniKategori) {
   S.arsiv = S.arsiv.map(a => a.id === arsivId ? { ...a, kategori: yeniKategori } : a);
   arsivKaydet();
@@ -879,16 +897,19 @@ function renderGecmis() {
               </button>
               ${acikMi ? `
               <div style="padding:0 16px 12px;">
-                <div style="font-size:9px; color:var(--muted); font-weight:700; margin-bottom:6px;">TÜM GEÇMİŞ (${k.tumKayitlar.length} kayıt)</div>
+                <div style="font-size:9px; color:var(--muted); font-weight:700; margin-bottom:6px;">TÜM GEÇMİŞ (${k.tumKayitlar.length} kayıt) — düzenlemek için birine dokun</div>
                 <div style="border-radius:8px; overflow:hidden; background:var(--bg);">
                   ${k.tumKayitlar.map((kay, i) => `
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; ${i!==k.tumKayitlar.length-1?'border-bottom:1px solid #E4E7E1;':''}">
+                    <button data-action="kayittan-duzenle" data-arsiv="${kay.arsivId}" data-urun="${kay.urunId}" style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:none; border:none; cursor:pointer; text-align:left; ${i!==k.tumKayitlar.length-1?'border-bottom:1px solid #E4E7E1;':''}">
                       <div style="min-width:0;">
                         <div style="font-size:10.5px; color:var(--ink); font-weight:600;">${new Date(kay.tarih).toLocaleDateString("tr-TR",{day:"2-digit",month:"short",year:"numeric"})}</div>
                         <div style="font-size:9px; color:var(--muted);">${esc(kay.alisverisIsim||"")}${kay.marketAdi?` · ${esc(kay.marketAdi)}`:""}</div>
                       </div>
-                      <span style="font-size:11px; font-weight:700; color:var(--ink); font-family:'Courier New',monospace; flex-shrink:0;">₺${paraFmt(kay.birimFiyati)}/${kay.birim==="gram"?"kg":"adet"}</span>
-                    </div>
+                      <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
+                        <span style="font-size:11px; font-weight:700; color:var(--ink); font-family:'Courier New',monospace;">₺${paraFmt(kay.birimFiyati)}/${kay.birim==="gram"?"kg":"adet"}</span>
+                        <span style="color:var(--green); font-size:11px;">✏️</span>
+                      </div>
+                    </button>
                   `).join("")}
                 </div>
               </div>` : ""}
@@ -918,7 +939,7 @@ function renderGecmis() {
       const acik = S.acikArsiv === a.id;
       const t = a.urunler.reduce((s,u)=>s+u.satirToplami,0);
       return `
-      <div class="archive-row">
+      <div class="archive-row" id="arsiv-kayit-${a.id}">
         <div class="archive-head">
           <button class="archive-name-wrap" data-action="arsiv-toggle" data-id="${a.id}">
             ${S.arsivIsimDuzenle === a.id
@@ -1476,6 +1497,9 @@ document.addEventListener("click", (e) => {
   else if (action === "arsiv-sirala") {
     S.arsivSiralamaTuru = t.dataset.tur;
     renderGecmis();
+  }
+  else if (action === "kayittan-duzenle") {
+    kayittanDuzenlemeyeGit(Number(t.dataset.arsiv), Number(t.dataset.urun));
   }
   else if (action === "arsiv-sil") { if(confirm("Bu alışveriş tamamen silinsin mi?")){ S.arsiv = S.arsiv.filter(a=>a.id!==id); arsivKaydet(); renderGecmis(); } }
   else if (action === "arsiv-isim-duzenle") { S.arsivIsimDuzenle = id; renderGecmis(); document.getElementById(`arsiv-isim-input-${id}`)?.focus(); }
