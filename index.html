@@ -854,6 +854,7 @@ function kayittanDuzenlemeyeGit(arsivId, urunId) {
     ad: u.ad === "Ürün" ? "" : u.ad, birim: u.birim,
     fiyat: String(u.fiyat).replace(".", ","), miktar: String(u.miktar).replace(".", ","),
     kacTane: u.kacTane, baskasiAdet: u.baskasiAdet || 0, kimIcin: u.kimIcin || "",
+    girisModu: "toplam", kgFiyati: "",
   };
   renderGecmis();
   setTimeout(() => {
@@ -1126,19 +1127,47 @@ function renderSimulasyonIcerik(simulasyon) {
   `).join("");
 }
 
+function hesaplaArsivDraftFiyat(d) {
+  if (!d) return NaN;
+  const girisModu = d.girisModu || "toplam";
+  const kacTaneNum = Number(d.kacTane) || 1;
+  const miktarNum = parseFloat(String(d.miktar).replace(",", "."));
+  if (d.birim === "gram" && girisModu === "birimFiyati") {
+    const kgFiyatiNum = parseFloat(String(d.kgFiyati || "").replace(",", "."));
+    return kgFiyatiNum > 0 && miktarNum > 0 ? (kgFiyatiNum * miktarNum) / 1000 : NaN;
+  }
+  if (d.birim === "adet" && girisModu === "toplam") {
+    const girilenNum = parseFloat(String(d.fiyat).replace(",", "."));
+    return girilenNum > 0 && kacTaneNum > 0 ? girilenNum / kacTaneNum : NaN;
+  }
+  return parseFloat(String(d.fiyat).replace(",", "."));
+}
+
 function renderArsivDraftKutusu(d) {
+  const girisModu = d.girisModu || "toplam";
+  const kgModu = d.birim === "gram" && girisModu === "birimFiyati";
+  const adetToplamModu = d.birim === "adet" && girisModu === "toplam";
+  const hesaplananFiyat = hesaplaArsivDraftFiyat(d);
   return `
     <div class="arsiv-edit-box">
       <input type="text" id="arsiv-draft-ad" value="${esc(d.ad)}" placeholder="Ürün adı" style="width:100%; font-weight:700;" />
-      <div class="arsiv-edit-row">
-        <select id="arsiv-draft-birim">
-          <option value="gram" ${d.birim==="gram"?"selected":""}>gram</option>
-          <option value="adet" ${d.birim==="adet"?"selected":""}>adet</option>
-        </select>
-        <input type="text" id="arsiv-draft-fiyat" value="${esc(d.fiyat)}" placeholder="fiyat" inputmode="decimal" style="width:56px;" />
-        <input type="text" id="arsiv-draft-miktar" value="${esc(d.miktar)}" placeholder="miktar" inputmode="decimal" style="width:56px;" />
+      <div style="display:flex; gap:5px; margin-top:6px;">
+        ${["gram","adet"].map(b => `
+          <button data-action="arsiv-draft-birim" data-birim="${b}" style="flex:1; padding:4px; border-radius:8px; border:none; cursor:pointer; font-size:9.5px; font-weight:700; background:${d.birim===b?'var(--green)':'#fff'}; color:${d.birim===b?'#fff':'var(--ink)'};">${b==="gram"?"Gram ile":"Adet ile"}</button>
+        `).join("")}
+      </div>
+      <div style="display:flex; gap:5px; margin-top:5px;">
+        <button data-action="arsiv-draft-giris-modu" data-modu="toplam" style="flex:1; padding:4px; border-radius:8px; border:none; cursor:pointer; font-size:9px; font-weight:700; background:${girisModu==="toplam"?'rgba(31,122,92,0.12)':'#fff'}; color:${girisModu==="toplam"?'var(--green)':'var(--muted)'};">Toplam fiyatı biliyorum</button>
+        <button data-action="arsiv-draft-giris-modu" data-modu="birimFiyati" style="flex:1; padding:4px; border-radius:8px; border:none; cursor:pointer; font-size:9px; font-weight:700; background:${girisModu==="birimFiyati"?'rgba(31,122,92,0.12)':'#fff'}; color:${girisModu==="birimFiyati"?'var(--green)':'var(--muted)'};">${d.birim==="gram"?"Kg fiyatını biliyorum":"Adet fiyatını biliyorum"}</button>
+      </div>
+      <div class="arsiv-edit-row" style="margin-top:5px;">
+        ${kgModu
+          ? `<input type="text" id="arsiv-draft-kgfiyat" value="${esc(d.kgFiyati||"")}" placeholder="kg fiyatı" inputmode="decimal" style="width:64px;" />`
+          : `<input type="text" id="arsiv-draft-fiyat" value="${esc(d.fiyat)}" placeholder="${adetToplamModu?"toplam fiyat":"fiyat"}" inputmode="decimal" style="width:64px;" />`}
+        <input type="text" id="arsiv-draft-miktar" value="${esc(d.miktar)}" placeholder="${d.birim==="gram"?"gram":"miktar"}" inputmode="decimal" style="width:56px;" />
         <input type="text" id="arsiv-draft-kactane" value="${esc(String(d.kacTane))}" placeholder="kaç tane" inputmode="numeric" style="width:44px;" />
       </div>
+      ${(kgModu || adetToplamModu) ? `<div id="arsiv-draft-onizleme" style="font-size:9.5px; font-weight:700; color:var(--green); margin-top:3px;">Hesaplanan ${kgModu?"toplam fiyat":"adet fiyatı"}: ${hesaplananFiyat>0?`₺${paraFmt(hesaplananFiyat)}`:"—"}</div>` : ""}
       <div class="arsiv-edit-row">
         <span style="font-size:10px; color:var(--muted); flex-shrink:0;">Başkası için:</span>
         <button data-action="arsiv-draft-baska-eksi" style="width:20px;height:20px;border-radius:999px;border:none;background:#fff;cursor:pointer;">−</button>
@@ -1512,7 +1541,7 @@ document.addEventListener("click", (e) => {
   }
   else if (action === "arsiv-urun-ekle-baslat") {
     const arsivId = Number(t.dataset.arsiv);
-    S.arsivDraft = { arsivId, urunId: null, ad: "", birim: "gram", fiyat: "", miktar: "", kacTane: 1, baskasiAdet: 0, kimIcin: "" };
+    S.arsivDraft = { arsivId, urunId: null, ad: "", birim: "gram", fiyat: "", miktar: "", kacTane: 1, baskasiAdet: 0, kimIcin: "", girisModu: "toplam", kgFiyati: "" };
     renderGecmis();
   }
   else if (action === "arsiv-urun-duzenle") {
@@ -1525,6 +1554,7 @@ document.addEventListener("click", (e) => {
       ad: u.ad==="Ürün"?"":u.ad, birim: u.birim,
       fiyat: String(u.fiyat).replace(".",","), miktar: String(u.miktar).replace(".",","),
       kacTane: u.kacTane, baskasiAdet: u.baskasiAdet||0, kimIcin: u.kimIcin||"",
+      girisModu: "toplam", kgFiyati: "",
     };
     renderGecmis();
   }
@@ -1536,16 +1566,33 @@ document.addEventListener("click", (e) => {
   else if (action === "arsiv-draft-iptal") { S.arsivDraft = null; renderGecmis(); }
   else if (action === "arsiv-draft-baska-eksi") { S.arsivDraft.baskasiAdet = Math.max(0, (S.arsivDraft.baskasiAdet||0)-1); renderGecmis(); }
   else if (action === "arsiv-draft-baska-arti") { S.arsivDraft.baskasiAdet = Math.min(Number(S.arsivDraft.kacTane)||1, (S.arsivDraft.baskasiAdet||0)+1); renderGecmis(); }
+  else if (action === "arsiv-draft-birim") {
+    S.arsivDraft.ad = document.getElementById("arsiv-draft-ad")?.value ?? S.arsivDraft.ad;
+    S.arsivDraft.birim = t.dataset.birim;
+    S.arsivDraft.girisModu = "toplam";
+    S.arsivDraft.fiyat = "";
+    S.arsivDraft.kgFiyati = "";
+    renderGecmis();
+  }
+  else if (action === "arsiv-draft-giris-modu") {
+    S.arsivDraft.ad = document.getElementById("arsiv-draft-ad")?.value ?? S.arsivDraft.ad;
+    S.arsivDraft.girisModu = t.dataset.modu;
+    S.arsivDraft.fiyat = "";
+    S.arsivDraft.kgFiyati = "";
+    renderGecmis();
+  }
   else if (action === "arsiv-draft-kaydet") {
     const d = S.arsivDraft;
     d.ad = document.getElementById("arsiv-draft-ad").value;
-    d.birim = document.getElementById("arsiv-draft-birim").value;
-    d.fiyat = document.getElementById("arsiv-draft-fiyat").value;
+    const fiyatEl = document.getElementById("arsiv-draft-fiyat");
+    if (fiyatEl) d.fiyat = fiyatEl.value;
+    const kgFiyatEl = document.getElementById("arsiv-draft-kgfiyat");
+    if (kgFiyatEl) d.kgFiyati = kgFiyatEl.value;
     d.miktar = document.getElementById("arsiv-draft-miktar").value;
     d.kacTane = document.getElementById("arsiv-draft-kactane").value;
     const kimIcinEl = document.getElementById("arsiv-draft-kimicin");
     if (kimIcinEl) d.kimIcin = kimIcinEl.value;
-    const fiyatNum = parseFloat(String(d.fiyat).replace(",","."));
+    const fiyatNum = hesaplaArsivDraftFiyat(d);
     const miktarNum = parseFloat(String(d.miktar).replace(",","."));
     const kacTaneNum = Number(d.kacTane) || 1;
     const baskasiAdetNum = Math.min(Number(d.baskasiAdet)||0, kacTaneNum);
@@ -1622,6 +1669,19 @@ document.addEventListener("input", (e) => {
   if (e.target.id === "kk-tavan") S.kkTavan = e.target.value;
   if (e.target.id === "kk-kategori-input") S.kkKategori = e.target.value;
   if (e.target.id === "kt-ad") S.ktAd = e.target.value;
+  if (S.arsivDraft && ["arsiv-draft-fiyat","arsiv-draft-kgfiyat","arsiv-draft-miktar","arsiv-draft-kactane"].includes(e.target.id)) {
+    if (e.target.id === "arsiv-draft-fiyat") S.arsivDraft.fiyat = e.target.value;
+    if (e.target.id === "arsiv-draft-kgfiyat") S.arsivDraft.kgFiyati = e.target.value;
+    if (e.target.id === "arsiv-draft-miktar") S.arsivDraft.miktar = e.target.value;
+    if (e.target.id === "arsiv-draft-kactane") S.arsivDraft.kacTane = e.target.value;
+    const onizleme = document.getElementById("arsiv-draft-onizleme");
+    if (onizleme) {
+      const girisModu = S.arsivDraft.girisModu || "toplam";
+      const kgModu = S.arsivDraft.birim === "gram" && girisModu === "birimFiyati";
+      const hesaplananFiyat = hesaplaArsivDraftFiyat(S.arsivDraft);
+      onizleme.textContent = `Hesaplanan ${kgModu?"toplam fiyat":"adet fiyatı"}: ${hesaplananFiyat>0?`₺${paraFmt(hesaplananFiyat)}`:"—"}`;
+    }
+  }
   if (e.target.dataset && e.target.dataset.action === "kimicin") {
     const id = Number(e.target.dataset.id);
     S.urunler = S.urunler.map(u => u.id===id ? {...u, kimIcin: e.target.value} : u);
