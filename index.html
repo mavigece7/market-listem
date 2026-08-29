@@ -210,6 +210,7 @@ let S = {
   kkDuzenleId: null,
   kkHesapTutari: "",
   kkKategori: "Tümü",
+  karsilastirmaArama: "",
   aktifKategori: "Market",
   editingId: null,
   arama: "",
@@ -298,7 +299,7 @@ function tumKategoriler() {
   return Array.from(set).sort((a,b) => a.localeCompare(b, "tr"));
 }
 
-function fiyatKarsilastirma() {
+function urunFiyatGruplari() {
   const gruplar = {};
   const sirali = [...S.arsiv].sort((a, b) => new Date(a.tarih) - new Date(b.tarih));
   sirali.forEach(a => {
@@ -309,6 +310,11 @@ function fiyatKarsilastirma() {
       gruplar[key].push({ ad: u.ad, tarih: a.tarih, alisverisIsim: a.isim, marketAdi: u.marketAdi || "", birimFiyati: u.birimFiyati, birim: u.birim, arsivId: a.id, urunId: u.id });
     });
   });
+  return gruplar;
+}
+
+function fiyatKarsilastirma() {
+  const gruplar = urunFiyatGruplari();
   const sonuc = [];
   Object.values(gruplar).forEach(kayitlar => {
     if (kayitlar.length < 2) return;
@@ -321,6 +327,19 @@ function fiyatKarsilastirma() {
   });
   sonuc.sort((a,b)=>Math.abs(b.yuzde)-Math.abs(a.yuzde));
   return sonuc;
+}
+
+function karsilastirmaAramaSonucu(arama) {
+  const q = (arama || "").trim().toLocaleLowerCase("tr");
+  if (!q) return [];
+  const gruplar = urunFiyatGruplari();
+  return Object.entries(gruplar)
+    .filter(([key]) => key.includes(q))
+    .map(([, kayitlar]) => ({
+      ad: kayitlar[kayitlar.length - 1].ad,
+      kayitlar: [...kayitlar].sort((a, b) => new Date(b.tarih) - new Date(a.tarih)),
+    }))
+    .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
 }
 
 /* ============ KART PUANI HESAPLAMA ============ */
@@ -872,13 +891,44 @@ function arsivKategoriGuncelle(arsivId, yeniKategori) {
 function renderGecmis() {
   const el = document.getElementById("gecmis-panel");
   const karsilastirma = fiyatKarsilastirma();
+  const gruplarVarMi = Object.keys(urunFiyatGruplari()).length > 0;
   let html = "";
 
-  if (karsilastirma.length > 0) {
+  if (gruplarVarMi) {
     html += `
       <div class="compare-card">
         <p class="compare-title">Fiyat Karşılaştırması</p>
-        <div class="compare-list">
+        <div style="position:relative; margin-bottom:12px;">
+          <span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); opacity:0.5; font-size:13px;">🔍</span>
+          <input type="search" id="karsilastirma-arama" placeholder="Ürün ara: geçmiş fiyatları ve marketleri gör..." value="${esc(S.karsilastirmaArama||"")}" style="padding-left:34px; padding-right:30px; background:#fff; box-shadow:0 4px 14px -6px rgba(22,36,28,0.1);" />
+          ${S.karsilastirmaArama ? `<button data-action="karsilastirma-arama-temizle" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; opacity:0.5; font-size:13px;">✕</button>` : ""}
+        </div>
+  `;
+
+  if ((S.karsilastirmaArama||"").trim()) {
+    const aramaSonuc = karsilastirmaAramaSonucu(S.karsilastirmaArama);
+    if (aramaSonuc.length > 0) {
+      html += `<div class="compare-list">` + aramaSonuc.map((sonuc, idx) => `
+        <div style="${idx !== aramaSonuc.length-1 ? 'border-bottom:1px solid #EEF0EC;' : ''}">
+          <div style="padding:12px 16px 4px;">
+            <span style="font-size:12.5px; font-weight:800; color:var(--ink);">${esc(sonuc.ad)}</span>
+            <span style="font-size:10px; color:var(--muted); margin-left:6px;">${sonuc.kayitlar.length} kayıt</span>
+          </div>
+          <div style="padding-bottom:8px;">
+            ${sonuc.kayitlar.map(kay => `
+              <button data-action="kayittan-duzenle" data-arsiv="${kay.arsivId}" data-urun="${kay.urunId}" style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:6px 16px; background:none; border:none; cursor:pointer; text-align:left;">
+                <span style="font-size:11px; color:var(--muted);">${new Date(kay.tarih).toLocaleDateString("tr-TR",{day:"2-digit",month:"short",year:"numeric"})}${kay.marketAdi?` · ${esc(kay.marketAdi)}`:""}</span>
+                <span style="font-size:11.5px; font-weight:700; color:var(--ink); font-family:'Courier New',monospace;">₺${paraFmt(kay.birimFiyati)}/${kay.birim==="gram"?"kg":"adet"}</span>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `).join("") + `</div>`;
+    } else {
+      html += `<div style="text-align:center; padding:24px 0; color:var(--muted);"><p style="font-size:12px;">"${esc(S.karsilastirmaArama)}" ile eşleşen ürün bulunamadı.</p></div>`;
+    }
+  } else if (karsilastirma.length > 0) {
+    html += `<div class="compare-list">
           ${karsilastirma.map((k, idx) => {
             const artti = k.fark > 0.005, azaldi = k.fark < -0.005;
             const renk = artti ? "#D14D3C" : azaldi ? "var(--green)" : "var(--muted)";
@@ -917,8 +967,9 @@ function renderGecmis() {
               ${idx !== karsilastirma.length-1 ? '<div style="border-bottom:1px solid #EEF0EC; margin:0 16px;"></div>' : ""}
             </div>`;
           }).join("")}
-        </div>
-      </div>`;
+        </div>`;
+  }
+  html += `</div>`;
   }
 
   html += `<div style="margin:0 16px;">
@@ -1491,6 +1542,7 @@ document.addEventListener("click", (e) => {
   }
   else if (action === "baska-toggle") { S.baskaAcik = !S.baskaAcik; renderBaska(); }
   else if (action === "arama-temizle") { S.arama=""; render(); }
+  else if (action === "karsilastirma-arama-temizle") { S.karsilastirmaArama=""; renderGecmis(); }
   else if (action === "kk-kanal") { S.kkKanal = t.dataset.kanal; renderPuan(); }
   else if (action === "kk-kategori") { S.kkKategori = t.dataset.kategori; renderPuan(); }
   else if (action === "kk-kural") { S.kkKural = t.dataset.kural; renderPuan(); }
@@ -1658,6 +1710,16 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("input", (e) => {
   if (e.target.id === "arama-input") { S.arama = e.target.value; renderList(); }
+  if (e.target.id === "karsilastirma-arama") {
+    S.karsilastirmaArama = e.target.value;
+    const imlecKonumu = e.target.selectionStart;
+    renderGecmis();
+    const yeniInput = document.getElementById("karsilastirma-arama");
+    if (yeniInput) {
+      yeniInput.focus();
+      yeniInput.setSelectionRange(imlecKonumu, imlecKonumu);
+    }
+  }
   if (e.target.id === "market-input") { S.marketAdi = e.target.value; }
   if (e.target.id === "kk-hesap-tutari") {
     S.kkHesapTutari = e.target.value;
