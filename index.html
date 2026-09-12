@@ -493,11 +493,14 @@ function render() {
           ${S.birim==="adet" && S.girisModu==="toplam" ? `
           <div class="preview" id="kg-hesap-onizleme" style="margin-top:0; margin-bottom:10px;"></div>` : ""}
 
-          <div class="stepper-row">
-            <span class="stepper-label">Kaç tane aldın?</span>
+          <div class="stepper-row" id="kactane-kutu" style="${S.kacTane===0?'background:rgba(255,107,74,0.13);':''}">
+            <div>
+              <span class="stepper-label" style="${S.kacTane===0?'color:var(--coral);':''}">Kaç tane aldın?</span>
+              ${S.kacTane===0?'<div class="kactane-not" style="font-size:9.5px; color:var(--coral); margin-top:1px;">Almadın — sadece fiyat takibi, toplamı etkilemez</div>':''}
+            </div>
             <div class="stepper">
               <button class="minus" data-action="kactane-eksi">−</button>
-              <span id="kac-tane-val">${S.kacTane}</span>
+              <span id="kac-tane-val" style="${S.kacTane===0?'color:var(--coral);':''}">${S.kacTane}</span>
               <button class="plus" data-action="kactane-arti">+</button>
             </div>
           </div>
@@ -632,9 +635,32 @@ function formDegerleri() {
   return { ad, fiyat, miktar, kgModuAktif, adetToplamModuAktif };
 }
 
+function renderKacTaneKutusu() {
+  const kutu = document.getElementById("kactane-kutu");
+  if (!kutu) return;
+  const sifirMi = S.kacTane === 0;
+  kutu.style.background = sifirMi ? "rgba(255,107,74,0.13)" : "var(--bg)";
+  const label = kutu.querySelector(".stepper-label");
+  if (label) label.style.color = sifirMi ? "var(--coral)" : "";
+  let not = kutu.querySelector(".kactane-not");
+  if (sifirMi) {
+    if (!not && label) {
+      not = document.createElement("div");
+      not.className = "kactane-not";
+      not.style.cssText = "font-size:9.5px; color:var(--coral); margin-top:1px;";
+      not.textContent = "Almadın — sadece fiyat takibi, toplamı etkilemez";
+      label.parentElement.appendChild(not);
+    }
+  } else if (not) {
+    not.remove();
+  }
+  const deger = document.getElementById("kac-tane-val");
+  if (deger) deger.style.color = sifirMi ? "var(--coral)" : "";
+}
+
 function renderPreview() {
   const { fiyat, miktar, kgModuAktif, adetToplamModuAktif } = formDegerleri();
-  const gecerli = fiyat > 0 && miktar > 0 && S.kacTane > 0;
+  const gecerli = fiyat > 0 && miktar > 0 && S.kacTane >= 0;
   const bf = birimFiyatiHesapla(fiyat, miktar, S.birim);
   const satirToplami = gecerli ? fiyat * S.kacTane : null;
   const box = document.getElementById("preview-box");
@@ -688,7 +714,7 @@ function gecmiseEkle(isim) {
 
 function kaydetUrun() {
   const { ad, fiyat, miktar } = formDegerleri();
-  const gecerli = fiyat > 0 && miktar > 0 && S.kacTane > 0;
+  const gecerli = fiyat > 0 && miktar > 0 && S.kacTane >= 0;
   if (!gecerli) return;
   const isim = ad.trim() || "Ürün";
   const marketAdiDeger = (document.getElementById("market-input")?.value || "").trim();
@@ -768,6 +794,7 @@ function renderList() {
       <div class="item-info" data-action="duzenle-satir" data-id="${u.id}">
         <div class="item-name ${baskasi?"baskasi":""}">
           ${esc(u.ad)}
+          ${u.kacTane===0?`<span class="item-tag tag-kacTane">almadım, fiyat takibi</span>`:""}
           ${u.kacTane>1?`<span class="item-tag tag-kacTane">×${u.kacTane}</span>`:""}
           ${baskasi?`<span class="item-tag tag-baskasi">${u.kacTane>1?`${u.baskasiAdet}/${u.kacTane} `:""}${u.kimIcin?esc(u.kimIcin)+" için":"başkası için"}</span>`:""}
         </div>
@@ -1528,8 +1555,8 @@ document.addEventListener("click", (e) => {
     document.getElementById("miktar-input").value = miktarDeger;
     renderPreview();
   }
-  else if (action === "kactane-eksi") { S.kacTane = Math.max(1, S.kacTane-1); document.getElementById("kac-tane-val").textContent = S.kacTane; renderPreview(); }
-  else if (action === "kactane-arti") { S.kacTane += 1; document.getElementById("kac-tane-val").textContent = S.kacTane; renderPreview(); }
+  else if (action === "kactane-eksi") { S.kacTane = Math.max(0, S.kacTane-1); document.getElementById("kac-tane-val").textContent = S.kacTane; renderPreview(); renderKacTaneKutusu(); }
+  else if (action === "kactane-arti") { S.kacTane += 1; document.getElementById("kac-tane-val").textContent = S.kacTane; renderPreview(); renderKacTaneKutusu(); }
   else if (action === "kaydet-urun") { kaydetUrun(); }
   else if (action === "duzenle-iptal") { formuTemizle(); render(); }
   else if (action === "duzenle-satir") { duzenle(id); }
