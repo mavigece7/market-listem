@@ -276,7 +276,7 @@ function tumUrunKayitlari() {
   listeler.forEach(liste => {
     liste.urunler.forEach(u => {
       if (!u.ad || u.ad === "Ürün") return;
-      const key = u.ad.trim().toLocaleLowerCase("tr");
+      const key = (u.ad || "").trim().toLocaleLowerCase("tr");
       const mevcut = kayitlar[key];
       if (!mevcut || new Date(liste.tarih) >= new Date(mevcut.tarih)) {
         kayitlar[key] = { ad: u.ad, birim: u.birim, fiyat: u.fiyat, miktar: u.miktar, birimFiyati: u.birimFiyati, marketAdi: u.marketAdi || "", tarih: liste.tarih };
@@ -305,7 +305,7 @@ function urunFiyatGruplari() {
   sirali.forEach(a => {
     a.urunler.forEach(u => {
       if (!u.birimFiyati) return;
-      const key = u.ad.trim().toLocaleLowerCase("tr");
+      const key = (u.ad || "").trim().toLocaleLowerCase("tr");
       if (!gruplar[key]) gruplar[key] = [];
       gruplar[key].push({ ad: u.ad, tarih: a.tarih, alisverisIsim: a.isim, marketAdi: u.marketAdi || "", birimFiyati: u.birimFiyati, birim: u.birim, arsivId: a.id, urunId: u.id });
     });
@@ -774,7 +774,7 @@ function renderList() {
   const el = document.getElementById("urun-listesi");
   if (!el) return;
   const q = S.arama.trim().toLocaleLowerCase("tr");
-  const gosterilecek = q ? S.urunler.filter(u => u.ad.toLocaleLowerCase("tr").includes(q)) : S.urunler;
+  const gosterilecek = q ? S.urunler.filter(u => (u.ad || "").toLocaleLowerCase("tr").includes(q)) : S.urunler;
 
   if (gosterilecek.length === 0) {
     el.innerHTML = S.urunler.length > 0
