@@ -755,7 +755,7 @@ function duzenle(id) {
   S.kgFiyati = "";
   S.marketAdi = u.marketAdi || "";
   render();
-  document.getElementById("ad-input").value = u.ad === "Ürün" ? "" : u.ad;
+  document.getElementById("ad-input").value = u.ad === "Ürün" ? "" : (u.ad || "");
   document.getElementById("fiyat-input").value = String(u.fiyat).replace(".", ",");
   document.getElementById("miktar-input").value = String(u.miktar).replace(".", ",");
   renderPreview();
@@ -897,7 +897,7 @@ function kayittanDuzenlemeyeGit(arsivId, urunId) {
   S.acikArsiv = a.id;
   S.arsivDraft = {
     arsivId, urunId,
-    ad: u.ad === "Ürün" ? "" : u.ad, birim: u.birim,
+    ad: u.ad === "Ürün" ? "" : (u.ad || ""), birim: u.birim,
     fiyat: String(u.fiyat).replace(".", ","), miktar: String(u.miktar).replace(".", ","),
     kacTane: u.kacTane, baskasiAdet: u.baskasiAdet || 0, kimIcin: u.kimIcin || "",
     girisModu: "toplam", kgFiyati: "",
